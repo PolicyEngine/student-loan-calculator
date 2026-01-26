@@ -499,41 +499,37 @@ export default function StudentLoanCalculator() {
     <div className="narrative-container">
       {/* Hero Section */}
       <header className="narrative-hero">
-        <h1>The hidden tax on young workers</h1>
+        <h1>Student loan repayments as effective National Insurance</h1>
         <p className="narrative-lead">
-          Student loan repayments function as an additional 9% tax on earnings above £{d3.format(",.0f")(params.slPlan2Threshold)},
-          creating marginal deduction rates of up to <strong>51%</strong> for graduates—9 percentage points higher than
-          colleagues without loans doing the same job.
+          Plan 2 student loan repayments add 9% to marginal deduction rates for earnings above £{d3.format(",.0f")(params.slPlan2Threshold)}.
+          This analysis examines how student loan repayments interact with income tax and National Insurance
+          to create combined marginal rates of up to <strong>51%</strong> for graduates.
         </p>
       </header>
 
-      {/* Section 1: The Problem */}
+      {/* Section 1: Overview */}
       <section className="narrative-section">
-        <h2>A generational disparity</h2>
+        <h2>Overview</h2>
         <p>
-          When we talk about tax rates in the UK, we usually focus on income tax and National Insurance.
-          But for the millions of workers with Plan 2 student loans—those who started university after 2012—there's
-          a third deduction that fundamentally changes the equation.
+          Marginal deduction rates for UK workers typically comprise income tax (20%/40%/45%) and National Insurance
+          (8%/2%). For workers with Plan 2 student loans—those who started higher education after September 2012—an
+          additional 9% repayment rate applies to earnings above £{d3.format(",.0f")(params.slPlan2Threshold)}.
         </p>
         <p>
-          Student loan repayments of 9% kick in above £{d3.format(",.0f")(params.slPlan2Threshold)}. Combined with
-          20% basic rate income tax and 8% National Insurance, this creates a true marginal rate of <strong>37%</strong> for
-          basic rate taxpayers with loans, compared to 28% for those without.
-        </p>
-        <p>
-          For higher earners between £50,270 and £100,000, the combined rate reaches <strong>51%</strong>—with 40% income tax,
-          2% NI, and 9% student loan repayments. And in the personal allowance taper zone (£100,000–£125,140),
-          the effective marginal rate can hit a staggering <strong>71%</strong>.
+          This creates combined marginal rates of <strong>37%</strong> for basic rate taxpayers with loans
+          (vs 28% without), and <strong>51%</strong> for higher rate taxpayers between £50,270 and £100,000
+          (vs 42% without). In the personal allowance taper zone (£100,000–£125,140), the effective marginal
+          rate reaches <strong>71%</strong>.
         </p>
       </section>
 
       {/* Chart 1: Marginal Rates */}
       <section className="narrative-section">
-        <h2>Breaking down the marginal rate</h2>
+        <h2>Marginal deduction rates by income</h2>
         <p>
-          The chart below shows how income tax (teal), National Insurance (light teal), and student loan repayments (amber)
-          stack up across the income distribution. The solid line shows the total marginal rate for someone with a student loan;
-          the dashed line shows the rate without one.
+          The chart shows the composition of marginal deduction rates across the income distribution:
+          income tax (teal), National Insurance (light teal), and student loan repayments (amber).
+          The solid line indicates the total rate with a student loan; the dashed line shows the rate without.
         </p>
 
         <div className="narrative-chart-container">
@@ -547,9 +543,8 @@ export default function StudentLoanCalculator() {
         </div>
 
         <p>
-          Notice how the amber band appears at £{d3.format(",.0f")(params.slPlan2Threshold)}—the Plan 2 repayment threshold.
-          From this point onwards, every additional pound earned is subject to the 9% repayment rate on top of
-          income tax and NI.
+          The student loan repayment band (amber) begins at £{d3.format(",.0f")(params.slPlan2Threshold)}—the Plan 2 threshold.
+          Above this level, each additional pound of earnings incurs the 9% repayment rate alongside income tax and NI.
         </p>
       </section>
 
@@ -558,27 +553,26 @@ export default function StudentLoanCalculator() {
         <div className="callout-grid">
           <div className="callout-item">
             <div className="callout-number">{(marginalWithLoan.totalRate * 100).toFixed(0)}%</div>
-            <div className="callout-label">Marginal rate at £50k with loan</div>
+            <div className="callout-label">Marginal rate at £50k (with loan)</div>
           </div>
           <div className="callout-item">
             <div className="callout-number">{(marginalWithoutLoan.totalRate * 100).toFixed(0)}%</div>
-            <div className="callout-label">Marginal rate at £50k without loan</div>
+            <div className="callout-label">Marginal rate at £50k (no loan)</div>
           </div>
           <div className="callout-item highlight">
             <div className="callout-number">+{marginalDiff.toFixed(0)}pp</div>
-            <div className="callout-label">Extra deduction for graduates</div>
+            <div className="callout-label">Difference</div>
           </div>
         </div>
       </section>
 
       {/* Section 2: Take-Home Impact */}
       <section className="narrative-section">
-        <h2>The real cost: less take-home pay</h2>
+        <h2>Impact on take-home pay</h2>
         <p>
-          These marginal rates translate into real differences in annual take-home pay. At a £50,000 salary,
-          a worker with a Plan 2 loan takes home <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> per year,
-          while their colleague without a loan keeps <strong>£{d3.format(",.0f")(withoutLoan.netIncome)}</strong>—a
-          difference of <strong>£{d3.format(",.0f")(annualRepayment)}</strong> annually.
+          At £50,000 gross salary, a worker with a Plan 2 loan receives <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> net,
+          compared to <strong>£{d3.format(",.0f")(withoutLoan.netIncome)}</strong> for a worker without a loan—a
+          difference of <strong>£{d3.format(",.0f")(annualRepayment)}</strong> per year.
         </p>
 
         <div className="narrative-chart-container">
@@ -590,66 +584,68 @@ export default function StudentLoanCalculator() {
         </div>
 
         <p>
-          The shaded area represents the cumulative cost of student loan repayments. This gap widens as income increases,
-          meaning higher-earning graduates face larger absolute deductions—though they may also pay off their loans faster.
+          The shaded area shows the cumulative difference in take-home pay. This gap increases with income,
+          as higher earners make larger absolute repayments.
         </p>
       </section>
 
       {/* Section 3: Policy Context */}
       <section className="narrative-section">
-        <h2>The policy context</h2>
+        <h2>Policy context</h2>
         <p>
-          In the Autumn Budget 2025, the Government announced it will freeze the Plan 2 student loan repayment
-          threshold at £{d3.format(",.0f")(params.slPlan2Threshold)} for three years from April 2027, instead of
-          allowing RPI uprating. This freeze means graduates will start repaying at a lower real income level,
-          effectively increasing the burden over time.
+          The Autumn Budget 2025 announced a freeze on the Plan 2 repayment threshold at £{d3.format(",.0f")(params.slPlan2Threshold)} for
+          three years from April 2027, rather than uprating by RPI. This results in graduates beginning
+          repayments at a lower real income level over time.
         </p>
         <p>
-          Unlike income tax and National Insurance, student loan repayments don't contribute to public services or
-          the state pension. They're a form of deferred payment for higher education—but one that creates a genuine
-          disparity in take-home pay between generations.
+          Student loan repayments differ from income tax and National Insurance in that they do not fund
+          public services or contribute to state pension entitlement. However, in terms of their effect on
+          take-home pay, they function similarly to an additional payroll deduction.
         </p>
         <p>
-          For two workers sitting side by side doing the same job at the same salary, the younger one with a Plan 2
-          loan will take home significantly less. This isn't a tax in the traditional sense, but it functions like one
-          in terms of its impact on disposable income.
+          Two workers at the same salary performing the same role will have different net incomes if one has
+          a Plan 2 loan. This represents a structural difference in effective tax burden by cohort.
         </p>
       </section>
 
-      {/* Interactive controls */}
-      <section className="narrative-controls">
-        <div className="control-row">
-          <label>Tax year:</label>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
-            <option value={2026}>2026/27</option>
-            <option value={2027}>2027/28</option>
-            <option value={2028}>2028/29</option>
-            <option value={2029}>2029/30</option>
-            <option value={2030}>2030/31</option>
-          </select>
-        </div>
-        <div className="control-row">
-          <label>
-            <input
-              type="checkbox"
-              checked={showPostgrad}
-              onChange={(e) => setShowPostgrad(e.target.checked)}
-            />
-            Include postgraduate loan (additional 6%)
-          </label>
+      {/* Parameters */}
+      <section className="narrative-section">
+        <h2>Parameters</h2>
+        <div className="params-controls">
+          <div className="control-row">
+            <label>Tax year:</label>
+            <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
+              <option value={2026}>2026/27</option>
+              <option value={2027}>2027/28</option>
+              <option value={2028}>2028/29</option>
+              <option value={2029}>2029/30</option>
+              <option value={2030}>2030/31</option>
+            </select>
+          </div>
+          <div className="control-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={showPostgrad}
+                onChange={(e) => setShowPostgrad(e.target.checked)}
+              />
+              Include postgraduate loan (6% above £{d3.format(",.0f")(params.slPostgradThreshold)})
+            </label>
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Methodology */}
       <footer className="narrative-footer">
+        <h3>Methodology</h3>
         <p>
-          Data based on {selectedYear}/{selectedYear + 1 - 2000} tax parameters.
-          Calculations assume employment income only. Student loan repayments based on Plan 2 terms
-          (9% above £{d3.format(",.0f")(params.slPlan2Threshold)}).
-          {showPostgrad && ` Postgraduate loan adds 6% above £${d3.format(",.0f")(params.slPostgradThreshold)}.`}
+          Analysis based on {selectedYear}/{selectedYear + 1 - 2000} tax year parameters.
+          Calculations assume employment income only. Student loan repayments use Plan 2 terms
+          (9% of earnings above £{d3.format(",.0f")(params.slPlan2Threshold)}).
+          {showPostgrad && ` Postgraduate loan: 6% above £${d3.format(",.0f")(params.slPostgradThreshold)}.`}
         </p>
         <p className="source-link">
-          Built with <a href="https://policyengine.org" target="_blank" rel="noopener noreferrer">PolicyEngine</a>
+          Analysis by <a href="https://policyengine.org" target="_blank" rel="noopener noreferrer">PolicyEngine</a>
         </p>
       </footer>
 

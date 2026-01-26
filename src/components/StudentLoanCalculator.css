@@ -166,10 +166,9 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* Interactive Controls */
-.narrative-controls {
-  margin: 48px 0;
-  padding: 24px;
+/* Parameters Controls */
+.params-controls {
+  padding: 20px;
   background: #f8f8f8;
   border-radius: 8px;
   border: 1px solid #e5e5e5;
@@ -217,15 +216,22 @@
   cursor: pointer;
 }
 
-/* Footer */
+/* Footer / Methodology */
 .narrative-footer {
-  margin-top: 64px;
+  margin-top: 48px;
   padding-top: 24px;
   border-top: 1px solid #e5e5e5;
 }
 
+.narrative-footer h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #1a1a1a;
+}
+
 .narrative-footer p {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: #666;
   line-height: 1.6;
   margin: 0 0 12px 0;
