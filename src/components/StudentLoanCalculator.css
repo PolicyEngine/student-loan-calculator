@@ -485,13 +485,6 @@
   border-radius: 12px;
   padding: 20px;
   text-align: center;
-  cursor: help;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.student-loan-calculator .summary-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .student-loan-calculator .summary-item.highlighted {
@@ -512,6 +505,77 @@
   font-size: 0.85rem;
   color: #64748b;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Info icon with tooltip */
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #9CA3AF;
+  cursor: help;
+  position: relative;
+}
+
+.student-loan-calculator .summary-item.highlighted .info-icon {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.info-icon:hover {
+  color: #64748b;
+}
+
+.student-loan-calculator .summary-item.highlighted .info-icon:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.info-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+  width: 220px;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+.info-icon::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1e293b;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 100;
+}
+
+.info-icon:hover::after,
+.info-icon:hover::before {
+  opacity: 1;
+  visibility: visible;
 }
 
 .student-loan-calculator .summary-value {
