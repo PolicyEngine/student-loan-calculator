@@ -769,6 +769,36 @@ export default function StudentLoanCalculator() {
             </div>
           </div>
 
+          {/* Plan comparison table */}
+          <div className="plan-comparison">
+            <div className="plan-comparison-header">Plan thresholds ({inputs.year}/{inputs.year + 1 - 2000})</div>
+            <div className="plan-comparison-table">
+              <div className={`plan-row ${inputs.plan === "plan1" ? "active" : ""}`}>
+                <span className="plan-name">Plan 1</span>
+                <span className="plan-threshold">£{d3.format(",.0f")(inputParams.slPlan1Threshold)}</span>
+              </div>
+              <div className={`plan-row ${inputs.plan === "plan2" ? "active" : ""}`}>
+                <span className="plan-name">Plan 2</span>
+                <span className="plan-threshold">£{d3.format(",.0f")(inputParams.slPlan2Threshold)}</span>
+              </div>
+              <div className={`plan-row ${inputs.plan === "plan4" ? "active" : ""}`}>
+                <span className="plan-name">Plan 4</span>
+                <span className="plan-threshold">£{d3.format(",.0f")(inputParams.slPlan4Threshold)}</span>
+              </div>
+              <div className={`plan-row ${inputs.plan === "plan5" ? "active" : ""}`}>
+                <span className="plan-name">Plan 5</span>
+                <span className="plan-threshold">£{d3.format(",.0f")(inputParams.slPlan5Threshold)}</span>
+              </div>
+              <div className={`plan-row postgrad ${inputs.hasPostgrad ? "active" : ""}`}>
+                <span className="plan-name">Postgrad</span>
+                <span className="plan-threshold">£{d3.format(",.0f")(inputParams.slPostgradThreshold)}</span>
+              </div>
+            </div>
+            <div className="plan-comparison-note">
+              All plans: 9% above threshold • Postgrad: 6%
+            </div>
+          </div>
+
           <button className="calculate-button" onClick={handleCalculate}>Calculate</button>
         </div>
 
