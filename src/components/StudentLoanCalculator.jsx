@@ -572,6 +572,27 @@ export default function StudentLoanCalculator() {
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
       .attr("font-size", "12px").attr("fill", "#64748b").text("Gross income");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `£${d / 1000}k`).ticks(6));
+
+    // Tooltip
+    const tooltip = d3.select(tooltipRef.current);
+    const bisect = d3.bisector((d) => d.income).left;
+
+    g.append("rect").attr("width", width).attr("height", height).attr("fill", "none").attr("pointer-events", "all")
+      .on("mousemove", function (event) {
+        const [mx] = d3.pointer(event);
+        const income = x.invert(mx);
+        const i = bisect(takeHomeData, income, 1);
+        const d = takeHomeData[Math.min(i, takeHomeData.length - 1)];
+        const gap = d.withoutLoan - d.withLoan;
+        tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+          .html(`<div class="tooltip-title">£${d3.format(",.0f")(d.income)} gross</div>
+            <div class="tooltip-section">
+              <div class="tooltip-row"><span style="color:${COLORS.withoutLoan}">● No student loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.withoutLoan)}</span></div>
+              <div class="tooltip-row"><span style="color:${COLORS.withLoan}">● With Plan 2 loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.withLoan)}</span></div>
+            </div>
+            <div class="tooltip-row tooltip-total"><span>Difference</span><span style="color:${COLORS.studentLoan};font-weight:700">-£${d3.format(",.0f")(gap)}</span></div>`);
+      })
+      .on("mouseout", () => tooltip.style("opacity", 0));
   }, [takeHomeData, calculatedInputs.salary, withLoan, withoutLoan, hasCalculated]);
 
   return (
