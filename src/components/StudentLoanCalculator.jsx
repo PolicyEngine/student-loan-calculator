@@ -20,12 +20,12 @@ const DEFAULT_PARAMS = {
   slRepaymentRate: 0.09,
 };
 
-// Colours following PolicyEngine design system
+// Colours following PolicyEngine design system (from UK Autumn Budget dashboard)
 const COLORS = {
   primary: "#319795",      // teal/500
-  incomeTax: "#026AA2",    // blue/700
-  ni: "#22C55E",           // success green
-  studentLoan: "#FEC601",  // warning yellow
+  incomeTax: "#14B8A6",    // Teal 500 (good for households spectrum)
+  ni: "#5EEAD4",           // Teal 300 (lighter teal)
+  studentLoan: "#FBBF24",  // Amber 400 (matches student loan freeze in budget dashboard)
   withLoan: "#319795",     // teal/500
   withoutLoan: "#9CA3AF",  // gray/400
   text: "#101828",         // gray/900
