@@ -262,114 +262,80 @@
   line-height: 1.4;
 }
 
-/* Checkbox group */
-.checkbox-group {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #475569;
-  padding: 8px 10px;
+/* Postgraduate toggle */
+.postgrad-toggle {
+  margin-top: 16px;
+  padding: 12px 14px;
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  transition: border-color 0.15s, background 0.15s;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.checkbox-label:hover {
+.postgrad-toggle:hover {
+  border-color: #cbd5e1;
+  background: #fafafa;
+}
+
+.postgrad-toggle.active {
   border-color: #319795;
   background: #f0fdfa;
 }
 
-.checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: #319795;
-  cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"]:checked + span {
-  color: #319795;
-  font-weight: 600;
-}
-
-/* Plan comparison table */
-.plan-comparison {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.plan-comparison-header {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 10px;
-}
-
-.plan-comparison-table {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.plan-row {
+.postgrad-toggle-header {
   display: flex;
-  justify-content: space-between;
-  padding: 8px 12px;
-  font-size: 0.8rem;
-  border-bottom: 1px solid #f1f5f9;
-  transition: background 0.15s;
+  align-items: center;
+  gap: 10px;
 }
 
-.plan-row:last-child {
-  border-bottom: none;
+.toggle-switch {
+  width: 36px;
+  height: 20px;
+  background: #e2e8f0;
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
 }
 
-.plan-row.active {
-  background: #f0fdfa;
+.toggle-switch.on {
+  background: #319795;
 }
 
-.plan-row.active .plan-name {
-  color: #319795;
-  font-weight: 600;
+.toggle-knob {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-.plan-row.active .plan-threshold {
-  color: #319795;
-  font-weight: 600;
+.toggle-switch.on .toggle-knob {
+  transform: translateX(16px);
 }
 
-.plan-row.postgrad {
-  border-top: 1px dashed #e2e8f0;
-}
-
-.plan-name {
-  color: #475569;
-}
-
-.plan-threshold {
-  color: #1e293b;
+.postgrad-toggle-label {
+  font-size: 0.85rem;
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
+  color: #475569;
+  transition: color 0.2s ease;
 }
 
-.plan-comparison-note {
-  font-size: 0.7rem;
+.postgrad-toggle.active .postgrad-toggle-label {
+  color: #319795;
+  font-weight: 600;
+}
+
+.postgrad-toggle-detail {
+  margin-top: 6px;
+  margin-left: 46px;
+  font-size: 0.75rem;
   color: #94a3b8;
-  margin-top: 8px;
-  text-align: center;
 }
 
 /* Calculate button */
