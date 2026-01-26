@@ -727,8 +727,8 @@ export default function StudentLoanCalculator() {
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
-                  <div className="legend-item"><div className="legend-color" style={{ background: "#4B5563", height: "2px", borderRadius: 0 }}></div><span>With loan (solid)</span></div>
-                  <div className="legend-item"><div className="legend-color" style={{ background: "#4B5563", height: "2px", borderRadius: 0, borderTop: "2px dashed #4B5563", backgroundColor: "transparent" }}></div><span>Without loan (dashed)</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: "#4B5563", height: "2px", borderRadius: 0 }}></div><span>With loan</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: "#4B5563", height: "2px", borderRadius: 0, borderTop: "2px dashed #4B5563", backgroundColor: "transparent" }}></div><span>Without loan</span></div>
                 </div>
               </div>
 
