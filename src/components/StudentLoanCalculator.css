@@ -1,4 +1,4 @@
-/* Student Loan Calculator */
+/* Student Loan Tab - extends LifecycleCalculator styles */
 
 .student-loan-calculator {
   width: 100%;
@@ -6,123 +6,34 @@
   color: #374151;
 }
 
-/* Hero section */
-.hero-section {
-  background: linear-gradient(135deg, #319795 0%, #2c7a7b 100%);
-  border-radius: 16px;
-  padding: 40px;
+/* Reuse lifecycle layout styles */
+.student-loan-calculator .lifecycle-header {
+  padding: 24px 0 16px;
+  border-bottom: 1px solid #e2e8f0;
   margin-bottom: 24px;
-  color: white;
 }
 
-.hero-content h1 {
+.student-loan-calculator .lifecycle-header-content h2 {
   margin: 0 0 8px 0;
-  font-size: 2rem;
-  font-weight: 700;
-  color: white;
-}
-
-.hero-subtitle {
-  margin: 0 0 32px 0;
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.hero-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-}
-
-.hero-stat {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-}
-
-.hero-stat-value {
-  display: block;
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: white;
-  line-height: 1.1;
-  margin-bottom: 8px;
-}
-
-.hero-stat-label {
-  display: block;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-@media (max-width: 768px) {
-  .hero-section {
-    padding: 24px;
-  }
-
-  .hero-content h1 {
-    font-size: 1.5rem;
-  }
-
-  .hero-stats {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .hero-stat {
-    padding: 16px;
-  }
-
-  .hero-stat-value {
-    font-size: 2rem;
-  }
-}
-
-/* About section */
-.about-section {
-  margin-bottom: 24px;
-}
-
-.about-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.about-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 24px;
-}
-
-.about-card-icon {
   font-size: 1.5rem;
-  margin-bottom: 12px;
-}
-
-.about-card h3 {
-  margin: 0 0 12px 0;
-  font-size: 1rem;
   font-weight: 600;
   color: #1e293b;
 }
 
-.about-card p {
+.student-loan-calculator .lifecycle-subtitle {
   margin: 0;
-  font-size: 0.9rem;
   color: #64748b;
-  line-height: 1.6;
+  font-size: 0.95rem;
 }
 
-@media (max-width: 900px) {
-  .about-grid {
-    grid-template-columns: 1fr;
-  }
+/* About section */
+.about-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
 }
 
-/* Legacy styles for policy-box (keeping for compatibility) */
 .about-section .policy-box {
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -148,6 +59,14 @@
 
 .about-section .policy-box p:last-child {
   margin-bottom: 0;
+}
+
+.about-section .policy-box .parameters {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #64748b;
 }
 
 .about-section .question-box {

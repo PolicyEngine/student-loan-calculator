@@ -46,4 +46,3 @@ ENV/
 coverage/
 .coverage
 htmlcov/
-.vercel

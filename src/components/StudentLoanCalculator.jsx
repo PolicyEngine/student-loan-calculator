@@ -561,55 +561,24 @@ export default function StudentLoanCalculator() {
 
   return (
     <div className="student-loan-calculator">
-      {/* Hero section */}
-      <div className="hero-section">
-        <div className="hero-content">
-          <h1>Student loan as effective National Insurance</h1>
-          <p className="hero-subtitle">
-            How Plan 2 student loan repayments create a generational tax disparity
+      <div className="lifecycle-header">
+        <div className="lifecycle-header-content">
+          <h2>Student loan as effective National Insurance</h2>
+          <p className="lifecycle-subtitle">
+            Compare marginal deduction rates for workers with and without Plan 2 student loans
           </p>
-        </div>
-
-        <div className="hero-stats">
-          <div className="hero-stat">
-            <span className="hero-stat-value">51%</span>
-            <span className="hero-stat-label">Max marginal rate with Plan 2</span>
-          </div>
-          <div className="hero-stat">
-            <span className="hero-stat-value">+9pp</span>
-            <span className="hero-stat-label">Higher than older workers</span>
-          </div>
-          <div className="hero-stat">
-            <span className="hero-stat-value">71%</span>
-            <span className="hero-stat-label">In the PA taper zone</span>
-          </div>
         </div>
       </div>
 
-      {/* About section */}
+      {/* About section - moved to top */}
       <div className="about-section">
-        <div className="about-grid">
-          <div className="about-card">
-            <div className="about-card-icon">📊</div>
-            <h3>What this shows</h3>
-            <p>
-              True marginal deduction rates combining income tax (20%/40%/45%), National Insurance (8%/2%), and Plan 2 student loan repayments (9% above £29,385). Workers under 32 face significantly higher rates than older colleagues on the same salary.
-            </p>
-          </div>
-          <div className="about-card">
-            <div className="about-card-icon">📅</div>
-            <h3>Autumn Budget 2024</h3>
-            <p>
-              The Government will freeze the Plan 2 threshold at £29,385 for three years from April 2027, instead of RPI uprating. This means graduates start repaying at a lower real income level, increasing total repayments over time.
-            </p>
-          </div>
-          <div className="about-card">
-            <div className="about-card-icon">⚖️</div>
-            <h3>Generational disparity</h3>
-            <p>
-              Plan 2 repayments function as a de facto generational payroll tax. A 28-year-old and 50-year-old doing the same job, earning the same salary, take home different amounts due to this 9% additional deduction.
-            </p>
-          </div>
+        <div className="policy-box">
+          <p>
+            This dashboard shows true marginal deduction rates when combining income tax (20% basic, 40% higher, 45% additional), National Insurance (8% main rate, 2% above £50,270), and Plan 2 student loan repayments (9% above £29,385). Workers under 32 with Plan 2 loans face marginal rates up to 51% (or 71% in the PA taper zone), 9 percentage points higher than older workers on the same salary. This effectively creates a generational tax disparity where younger and older workers doing the same job take home different amounts.
+          </p>
+          <p>
+            In the Autumn Budget 2024, the Government announced it will freeze the Plan 2 student loan repayment threshold at £29,385 for three years from April 2027, instead of allowing RPI uprating. This means graduates start repaying at a lower real income level, increasing repayments. Plan 2 student loan repayments effectively function as a generational payroll tax, with the 9% repayment rate creating higher effective marginal rates for younger workers compared to older colleagues on the same salary.
+          </p>
         </div>
       </div>
 
