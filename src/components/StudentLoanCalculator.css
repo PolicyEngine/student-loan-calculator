@@ -1,0 +1,737 @@
+/* Student Loan Tab - extends LifecycleCalculator styles */
+
+.student-loan-calculator {
+  width: 100%;
+  font-family: "Roboto", sans-serif;
+  color: #374151;
+}
+
+/* Reuse lifecycle layout styles */
+.student-loan-calculator .lifecycle-header {
+  padding: 24px 0 16px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+}
+
+.student-loan-calculator .lifecycle-header-content h2 {
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.student-loan-calculator .lifecycle-subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+/* About section */
+.about-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.about-section .policy-box {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #319795;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.about-section .policy-box h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.about-section .policy-box p {
+  margin: 0 0 12px 0;
+  font-size: 0.95rem;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.about-section .policy-box p:last-child {
+  margin-bottom: 0;
+}
+
+.about-section .policy-box .parameters {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.about-section .question-box {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 16px;
+}
+
+.about-section .question-box h4 {
+  margin: 0 0 12px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.about-section .question-box p {
+  margin: 0 0 10px 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.about-section .question-box p:last-child {
+  margin-bottom: 0;
+}
+
+.about-section p {
+  margin: 0 0 12px 0;
+  line-height: 1.6;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.about-section p:last-child {
+  margin-bottom: 0;
+}
+
+.about-section .parameters {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.student-loan-calculator .lifecycle-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 32px;
+}
+
+@media (max-width: 900px) {
+  .student-loan-calculator .lifecycle-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Controls sidebar */
+.student-loan-calculator .lifecycle-controls {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.student-loan-calculator .lifecycle-controls h3 {
+  margin: 0 0 20px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.student-loan-calculator .control-group {
+  margin-bottom: 16px;
+}
+
+.student-loan-calculator .control-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 6px;
+  cursor: help;
+}
+
+.student-loan-calculator .slider-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.student-loan-calculator .slider-container input[type="range"] {
+  flex: 1;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.student-loan-calculator .slider-container input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #319795;
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.student-loan-calculator .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px rgba(49, 151, 149, 0.2);
+}
+
+.student-loan-calculator .slider-container input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #319795;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.student-loan-calculator .slider-value {
+  min-width: 80px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #319795;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.year-select:focus {
+  outline: none;
+  border-color: #319795;
+  box-shadow: 0 0 0 2px rgba(49, 151, 149, 0.2);
+}
+
+/* Calculate button */
+.calculate-button {
+  width: 100%;
+  padding: 12px 20px;
+  margin-top: 20px;
+  background: linear-gradient(135deg, #319795 0%, #2c7a7b 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.calculate-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(49, 151, 149, 0.3);
+}
+
+.calculate-button:active {
+  transform: translateY(0);
+}
+
+/* Loan status badge */
+.loan-status {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-badge.with-loan {
+  background: rgba(49, 151, 149, 0.1);
+  color: #319795;
+}
+
+.status-badge.no-loan {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.status-note {
+  margin: 8px 0 0 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* Breakdown section */
+.breakdown-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.breakdown-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.breakdown-table {
+  width: 100%;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+}
+
+.breakdown-table td {
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.breakdown-table td:last-child {
+  text-align: right;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown-table .negative {
+  color: #ef4444;
+}
+
+.breakdown-table .positive {
+  color: #22c55e;
+}
+
+.breakdown-table .total-row {
+  border-top: 2px solid #e2e8f0;
+}
+
+.breakdown-table .total-row td {
+  padding-top: 10px;
+  font-weight: 600;
+}
+
+/* Main content */
+.student-loan-calculator .lifecycle-main {
+  min-width: 0;
+}
+
+/* Deductions box */
+.deductions-box {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.deductions-header {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.deductions-header .status-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #319795 0%, #2c7a7b 100%);
+  color: white;
+}
+
+.deductions-header .status-note {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.deductions-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.deduction-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.deduction-label {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.deduction-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+.deduction-value.negative {
+  color: #ef4444;
+}
+
+.deduction-value.positive {
+  color: #22c55e;
+}
+
+.deduction-item.total {
+  padding-left: 16px;
+  border-left: 2px solid #319795;
+}
+
+@media (max-width: 800px) {
+  .deductions-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .deduction-item.total {
+    grid-column: span 3;
+    padding-left: 0;
+    border-left: none;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+  }
+}
+
+@media (max-width: 500px) {
+  .deductions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .deduction-item.total {
+    grid-column: span 2;
+  }
+
+  .status-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+/* Summary cards */
+.student-loan-calculator .lifecycle-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 700px) {
+  .student-loan-calculator .lifecycle-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.student-loan-calculator .summary-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.student-loan-calculator .summary-item.highlighted {
+  background: linear-gradient(135deg, #319795 0%, #2c7a7b 100%);
+  border: none;
+  color: white;
+}
+
+.student-loan-calculator .summary-item.highlighted .summary-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.student-loan-calculator .summary-item.highlighted .summary-value {
+  color: white;
+}
+
+.student-loan-calculator .summary-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.student-loan-calculator .summary-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.student-loan-calculator .summary-value.positive {
+  color: #22c55e;
+}
+
+.student-loan-calculator .summary-value.negative {
+  color: #ef4444;
+}
+
+/* Chart container */
+.student-loan-calculator .chart-container {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.chart-title {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.chart-subtitle {
+  margin: 0 0 20px 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.student-loan-calculator .chart {
+  width: 100%;
+  min-height: 400px;
+}
+
+.student-loan-calculator .chart.chart-short {
+  min-height: 300px;
+}
+
+/* Cohort selector */
+.cohort-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.cohort-selector label {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.cohort-selector select {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.cohort-selector select:focus {
+  outline: none;
+  border-color: #319795;
+  box-shadow: 0 0 0 2px rgba(49, 151, 149, 0.2);
+}
+
+/* Chart styles */
+.student-loan-calculator .chart svg {
+  overflow: visible;
+}
+
+.student-loan-calculator .chart .grid line {
+  stroke: #e0e0e0;
+  stroke-dasharray: 4, 4;
+}
+
+.student-loan-calculator .chart .grid .domain {
+  display: none;
+}
+
+.student-loan-calculator .chart .axis text {
+  fill: #6b7280;
+  font-size: 11px;
+}
+
+.student-loan-calculator .chart .axis path,
+.student-loan-calculator .chart .axis line {
+  stroke: #e5e7eb;
+}
+
+/* Legend */
+.student-loan-calculator .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.student-loan-calculator .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.student-loan-calculator .legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+/* Thresholds table section */
+.thresholds-section {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.thresholds-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.thresholds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.thresholds-table th {
+  text-align: left;
+  padding: 12px 16px;
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.thresholds-table th:not(:first-child) {
+  text-align: center;
+}
+
+.thresholds-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.thresholds-table td:not(:first-child) {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.threshold-note {
+  display: block;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.diff-cell {
+  color: #319795;
+  font-weight: 600;
+}
+
+/* Tooltip */
+.student-loan-calculator .lifecycle-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.85rem;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1000;
+  max-width: 280px;
+}
+
+.student-loan-calculator .tooltip-title {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.student-loan-calculator .tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+}
+
+.student-loan-calculator .tooltip-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.student-loan-calculator .tooltip-diff {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.student-loan-calculator .tooltip-section {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.student-loan-calculator .tooltip-total {
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .student-loan-calculator .lifecycle-controls {
+    position: static;
+  }
+}
+
+@media (max-width: 480px) {
+  .student-loan-calculator .slider-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .student-loan-calculator .slider-value {
+    text-align: left;
+  }
+
+  .thresholds-table {
+    font-size: 0.75rem;
+  }
+
+  .thresholds-table th,
+  .thresholds-table td {
+    padding: 8px;
+  }
+}
