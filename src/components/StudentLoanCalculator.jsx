@@ -25,7 +25,7 @@ const COLORS = {
   primary: "#319795",      // teal/500
   incomeTax: "#14B8A6",    // Teal 500 (good for households spectrum)
   ni: "#5EEAD4",           // Teal 300 (lighter teal)
-  studentLoan: "#D97706",  // Amber 600 (darker orange from budget dashboard)
+  studentLoan: "#F59E0B",  // Amber 500 (lighter orange)
   withLoan: "#319795",     // teal/500
   withoutLoan: "#9CA3AF",  // gray/400
   text: "#101828",         // gray/900
