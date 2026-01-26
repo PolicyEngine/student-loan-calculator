@@ -40,7 +40,7 @@ const COLORS = {
 };
 
 // Calculate marginal rate at a given income
-function calculateMarginalRate(grossIncome, params, hasStudentLoan = false, hasPostgrad = false) {
+function calculateMarginalRate(grossIncome, params, plan = "none", hasPostgrad = false) {
   let itRate = 0;
   let niRate = 0;
   let slRate = 0;
@@ -68,7 +68,8 @@ function calculateMarginalRate(grossIncome, params, hasStudentLoan = false, hasP
     niRate = params.niHigherRate;
   }
 
-  if (hasStudentLoan && grossIncome > params.slPlan2Threshold) {
+  const planThreshold = getPlanThreshold(params, plan);
+  if (plan !== "none" && grossIncome > planThreshold) {
     slRate = params.slRepaymentRate;
   }
 
@@ -87,7 +88,7 @@ function calculateMarginalRate(grossIncome, params, hasStudentLoan = false, hasP
 }
 
 // Calculate actual deductions
-function calculateDeductions(grossIncome, params, hasStudentLoan = false, hasPostgrad = false) {
+function calculateDeductions(grossIncome, params, plan = "none", hasPostgrad = false) {
   let incomeTax = 0;
   let effectivePA = params.personalAllowance;
 
@@ -122,8 +123,9 @@ function calculateDeductions(grossIncome, params, hasStudentLoan = false, hasPos
   }
 
   let studentLoan = 0;
-  if (hasStudentLoan && grossIncome > params.slPlan2Threshold) {
-    studentLoan = (grossIncome - params.slPlan2Threshold) * params.slRepaymentRate;
+  const planThreshold = getPlanThreshold(params, plan);
+  if (plan !== "none" && grossIncome > planThreshold) {
+    studentLoan = (grossIncome - planThreshold) * params.slRepaymentRate;
   }
 
   let postgradLoan = 0;
@@ -143,11 +145,11 @@ function calculateDeductions(grossIncome, params, hasStudentLoan = false, hasPos
 }
 
 // Generate marginal rate data
-function generateMarginalRateData(params, hasPostgrad = false) {
+function generateMarginalRateData(params, plan = "plan2", hasPostgrad = false) {
   const data = [];
   for (let income = 0; income <= 150000; income += 500) {
-    const withLoan = calculateMarginalRate(income, params, true, hasPostgrad);
-    const withoutLoan = calculateMarginalRate(income, params, false, false);
+    const withLoan = calculateMarginalRate(income, params, plan, hasPostgrad);
+    const withoutLoan = calculateMarginalRate(income, params, "none", false);
     data.push({
       income,
       withLoan: withLoan.totalRate * 100,
@@ -163,11 +165,11 @@ function generateMarginalRateData(params, hasPostgrad = false) {
 }
 
 // Generate take-home pay data
-function generateTakeHomeData(params, hasPostgrad = false) {
+function generateTakeHomeData(params, plan = "plan2", hasPostgrad = false) {
   const data = [];
   for (let income = 0; income <= 150000; income += 2500) {
-    const withLoan = calculateDeductions(income, params, true, hasPostgrad);
-    const withoutLoan = calculateDeductions(income, params, false, false);
+    const withLoan = calculateDeductions(income, params, plan, hasPostgrad);
+    const withoutLoan = calculateDeductions(income, params, "none", false);
     data.push({
       income,
       withLoan: Math.round(withLoan.netIncome),
@@ -203,11 +205,32 @@ function parseParamsRow(row) {
   };
 }
 
+// Student loan plan options
+const PLAN_OPTIONS = [
+  { value: "none", label: "No student loan", threshold: null },
+  { value: "plan1", label: "Plan 1", threshold: "slPlan1Threshold", description: "Started before Sept 2012 (Eng/Wales) or Scotland/NI" },
+  { value: "plan2", label: "Plan 2", threshold: "slPlan2Threshold", description: "Started Sept 2012+ (England/Wales)" },
+  { value: "plan4", label: "Plan 4", threshold: "slPlan4Threshold", description: "Scotland" },
+  { value: "plan5", label: "Plan 5", threshold: "slPlan5Threshold", description: "Started Aug 2023+ (England)" },
+];
+
+function getPlanThreshold(params, plan) {
+  const thresholds = {
+    plan1: params.slPlan1Threshold,
+    plan2: params.slPlan2Threshold,
+    plan4: params.slPlan4Threshold,
+    plan5: params.slPlan5Threshold,
+  };
+  return thresholds[plan] || params.slPlan2Threshold;
+}
+
 export default function StudentLoanCalculator() {
   const [allParams, setAllParams] = useState({});
   const [paramsLoaded, setParamsLoaded] = useState(false);
   const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedPlan, setSelectedPlan] = useState("plan2");
   const [showPostgrad, setShowPostgrad] = useState(false);
+  const [exampleSalary, setExampleSalary] = useState(50000);
   const chartRef = useRef(null);
   const takeHomeChartRef = useRef(null);
   const tooltipRef = useRef(null);
@@ -246,15 +269,16 @@ export default function StudentLoanCalculator() {
     return allParams[selectedYear] || DEFAULT_PARAMS;
   }, [allParams, selectedYear, paramsLoaded]);
 
-  const marginalRateData = useMemo(() => generateMarginalRateData(params, showPostgrad), [params, showPostgrad]);
-  const takeHomeData = useMemo(() => generateTakeHomeData(params, showPostgrad), [params, showPostgrad]);
+  const marginalRateData = useMemo(() => generateMarginalRateData(params, selectedPlan, showPostgrad), [params, selectedPlan, showPostgrad]);
+  const takeHomeData = useMemo(() => generateTakeHomeData(params, selectedPlan, showPostgrad), [params, selectedPlan, showPostgrad]);
 
-  // Example calculations for narrative
-  const exampleSalary = 50000;
-  const withLoan = useMemo(() => calculateDeductions(exampleSalary, params, true, showPostgrad), [params, showPostgrad]);
-  const withoutLoan = useMemo(() => calculateDeductions(exampleSalary, params, false, false), [params]);
-  const marginalWithLoan = useMemo(() => calculateMarginalRate(exampleSalary, params, true, showPostgrad), [params, showPostgrad]);
-  const marginalWithoutLoan = useMemo(() => calculateMarginalRate(exampleSalary, params, false, false), [params]);
+  // Example calculations
+  const hasLoan = selectedPlan !== "none";
+  const planThreshold = getPlanThreshold(params, selectedPlan);
+  const withLoan = useMemo(() => calculateDeductions(exampleSalary, params, selectedPlan, showPostgrad), [exampleSalary, params, selectedPlan, showPostgrad]);
+  const withoutLoan = useMemo(() => calculateDeductions(exampleSalary, params, "none", false), [exampleSalary, params]);
+  const marginalWithLoan = useMemo(() => calculateMarginalRate(exampleSalary, params, selectedPlan, showPostgrad), [exampleSalary, params, selectedPlan, showPostgrad]);
+  const marginalWithoutLoan = useMemo(() => calculateMarginalRate(exampleSalary, params, "none", false), [exampleSalary, params]);
 
   // Chart 1: Marginal Rate
   useEffect(() => {
@@ -360,8 +384,8 @@ export default function StudentLoanCalculator() {
 
     // Key income markers
     const keyIncomes = [
-      { income: params.slPlan2Threshold, label: "Repayment threshold", color: COLORS.studentLoan },
-      { income: 50000, label: "£50k example", color: COLORS.primary },
+      { income: planThreshold, label: "Repayment threshold", color: COLORS.studentLoan },
+      { income: exampleSalary, label: `£${d3.format(",.0f")(exampleSalary)}`, color: COLORS.primary },
     ];
 
     keyIncomes.forEach(({ income, label, color }) => {
@@ -407,7 +431,7 @@ export default function StudentLoanCalculator() {
             <div class="tooltip-row"><span>Without loan</span><span style="color:${COLORS.withoutLoan};font-weight:600">${d.withoutLoan.toFixed(0)}%</span></div>`);
       })
       .on("mouseout", () => tooltip.style("opacity", 0));
-  }, [marginalRateData, params, paramsLoaded, showPostgrad]);
+  }, [marginalRateData, params, paramsLoaded, showPostgrad, planThreshold, exampleSalary]);
 
   // Chart 2: Take-Home Pay
   useEffect(() => {
@@ -436,33 +460,39 @@ export default function StudentLoanCalculator() {
 
     // Gap area
     const gapArea = d3.area().x((d) => x(d.income)).y0((d) => y(d.withLoan)).y1((d) => y(d.withoutLoan)).curve(d3.curveMonotoneX);
-    g.append("path").datum(takeHomeData.filter((d) => d.income >= params.slPlan2Threshold))
-      .attr("fill", COLORS.studentLoan).attr("fill-opacity", 0.15).attr("d", gapArea);
+    if (hasLoan) {
+      g.append("path").datum(takeHomeData.filter((d) => d.income >= planThreshold))
+        .attr("fill", COLORS.studentLoan).attr("fill-opacity", 0.15).attr("d", gapArea);
+    }
 
     g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withoutLoan).attr("stroke-width", 2.5).attr("d", lineWithoutLoan);
     g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withLoan).attr("stroke-width", 2.5).attr("d", lineWithLoan);
 
-    // Highlight £50k
-    const net50kWithLoan = calculateDeductions(50000, params, true, showPostgrad).netIncome;
-    const net50kWithoutLoan = calculateDeductions(50000, params, false, false).netIncome;
+    // Highlight selected salary
+    if (exampleSalary > 0 && exampleSalary <= 150000) {
+      const netWithLoan = calculateDeductions(exampleSalary, params, selectedPlan, showPostgrad).netIncome;
+      const netWithoutLoan = calculateDeductions(exampleSalary, params, "none", false).netIncome;
 
-    g.append("line")
-      .attr("x1", x(50000)).attr("x2", x(50000))
-      .attr("y1", 0).attr("y2", height)
-      .attr("stroke", COLORS.primary).attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
+      g.append("line")
+        .attr("x1", x(exampleSalary)).attr("x2", x(exampleSalary))
+        .attr("y1", 0).attr("y2", height)
+        .attr("stroke", COLORS.primary).attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
 
-    g.append("circle")
-      .attr("cx", x(50000)).attr("cy", y(net50kWithoutLoan)).attr("r", 6)
-      .attr("fill", COLORS.withoutLoan).attr("stroke", "#fff").attr("stroke-width", 2);
-    g.append("circle")
-      .attr("cx", x(50000)).attr("cy", y(net50kWithLoan)).attr("r", 6)
-      .attr("fill", COLORS.withLoan).attr("stroke", "#fff").attr("stroke-width", 2);
+      g.append("circle")
+        .attr("cx", x(exampleSalary)).attr("cy", y(netWithoutLoan)).attr("r", 6)
+        .attr("fill", COLORS.withoutLoan).attr("stroke", "#fff").attr("stroke-width", 2);
+      g.append("circle")
+        .attr("cx", x(exampleSalary)).attr("cy", y(netWithLoan)).attr("r", 6)
+        .attr("fill", COLORS.withLoan).attr("stroke", "#fff").attr("stroke-width", 2);
 
-    const gap = net50kWithoutLoan - net50kWithLoan;
-    g.append("text")
-      .attr("x", x(50000) + 8).attr("y", (y(net50kWithLoan) + y(net50kWithoutLoan)) / 2 + 4)
-      .attr("font-size", "12px").attr("font-weight", "600").attr("fill", COLORS.studentLoan)
-      .text(`-£${d3.format(",.0f")(gap)}/yr`);
+      const gap = netWithoutLoan - netWithLoan;
+      if (gap > 0) {
+        g.append("text")
+          .attr("x", x(exampleSalary) + 8).attr("y", (y(netWithLoan) + y(netWithoutLoan)) / 2 + 4)
+          .attr("font-size", "12px").attr("font-weight", "600").attr("fill", COLORS.studentLoan)
+          .text(`-£${d3.format(",.0f")(gap)}/yr`);
+      }
+    }
 
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(x).tickFormat((d) => `£${d / 1000}k`).ticks(6));
@@ -490,7 +520,7 @@ export default function StudentLoanCalculator() {
             <div class="tooltip-row tooltip-total"><span>Difference</span><span style="color:${COLORS.studentLoan};font-weight:700">-£${d3.format(",.0f")(gap)}</span></div>`);
       })
       .on("mouseout", () => tooltip.style("opacity", 0));
-  }, [takeHomeData, params, paramsLoaded, showPostgrad]);
+  }, [takeHomeData, params, paramsLoaded, showPostgrad, exampleSalary, selectedPlan, hasLoan, planThreshold]);
 
   const annualRepayment = withLoan.studentLoan + withLoan.postgradLoan;
   const marginalDiff = (marginalWithLoan.totalRate - marginalWithoutLoan.totalRate) * 100;
@@ -501,25 +531,76 @@ export default function StudentLoanCalculator() {
       <header className="narrative-hero">
         <h1>Student loan repayments as effective National Insurance</h1>
         <p className="narrative-lead">
-          Plan 2 student loan repayments add 9% to marginal deduction rates for earnings above £{d3.format(",.0f")(params.slPlan2Threshold)}.
-          This analysis examines how student loan repayments interact with income tax and National Insurance
-          to create combined marginal rates of up to <strong>51%</strong> for graduates.
+          Student loan repayments add 9% to marginal deduction rates above the repayment threshold.
+          This analysis examines how student loan repayments interact with income tax and National Insurance.
         </p>
       </header>
+
+      {/* Controls Panel */}
+      <section className="controls-panel">
+        <div className="controls-grid">
+          <div className="control-item">
+            <label>Annual salary</label>
+            <div className="salary-input-wrapper">
+              <span className="currency-symbol">£</span>
+              <input
+                type="number"
+                value={exampleSalary}
+                onChange={(e) => setExampleSalary(Math.max(0, parseInt(e.target.value) || 0))}
+                min="0"
+                max="500000"
+                step="1000"
+              />
+            </div>
+          </div>
+          <div className="control-item">
+            <label>Student loan plan</label>
+            <select value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value)}>
+              {PLAN_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            {selectedPlan !== "none" && (
+              <span className="control-hint">{PLAN_OPTIONS.find(p => p.value === selectedPlan)?.description}</span>
+            )}
+          </div>
+          <div className="control-item">
+            <label>Tax year</label>
+            <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
+              <option value={2026}>2026/27</option>
+              <option value={2027}>2027/28</option>
+              <option value={2028}>2028/29</option>
+              <option value={2029}>2029/30</option>
+              <option value={2030}>2030/31</option>
+            </select>
+          </div>
+          <div className="control-item">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={showPostgrad}
+                onChange={(e) => setShowPostgrad(e.target.checked)}
+              />
+              Postgraduate loan
+            </label>
+            <span className="control-hint">6% above £{d3.format(",.0f")(params.slPostgradThreshold)}</span>
+          </div>
+        </div>
+      </section>
 
       {/* Section 1: Overview */}
       <section className="narrative-section">
         <h2>Overview</h2>
         <p>
           Marginal deduction rates for UK workers typically comprise income tax (20%/40%/45%) and National Insurance
-          (8%/2%). For workers with Plan 2 student loans—those who started higher education after September 2012—an
-          additional 9% repayment rate applies to earnings above £{d3.format(",.0f")(params.slPlan2Threshold)}.
+          (8%/2%). For workers with student loans, an additional 9% repayment rate applies to earnings above the
+          plan threshold{hasLoan && ` (£${d3.format(",.0f")(planThreshold)} for ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label})`}.
         </p>
         <p>
           This creates combined marginal rates of <strong>37%</strong> for basic rate taxpayers with loans
           (vs 28% without), and <strong>51%</strong> for higher rate taxpayers between £50,270 and £100,000
           (vs 42% without). In the personal allowance taper zone (£100,000–£125,140), the effective marginal
-          rate reaches <strong>71%</strong>.
+          rate reaches <strong>{showPostgrad ? "77" : "71"}%</strong>.
         </p>
       </section>
 
@@ -543,8 +624,7 @@ export default function StudentLoanCalculator() {
         </div>
 
         <p>
-          The student loan repayment band (amber) begins at £{d3.format(",.0f")(params.slPlan2Threshold)}—the Plan 2 threshold.
-          Above this level, each additional pound of earnings incurs the 9% repayment rate alongside income tax and NI.
+          {hasLoan ? `The student loan repayment band (amber) begins at £${d3.format(",.0f")(planThreshold)}—the ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} threshold. Above this level, each additional pound of earnings incurs the 9% repayment rate alongside income tax and NI.` : "Select a student loan plan above to see the impact of repayments on marginal rates."}
         </p>
       </section>
 
@@ -553,14 +633,14 @@ export default function StudentLoanCalculator() {
         <div className="callout-grid">
           <div className="callout-item">
             <div className="callout-number">{(marginalWithLoan.totalRate * 100).toFixed(0)}%</div>
-            <div className="callout-label">Marginal rate at £50k (with loan)</div>
+            <div className="callout-label">Marginal rate at £{d3.format(",.0f")(exampleSalary)}{hasLoan && " (with loan)"}</div>
           </div>
           <div className="callout-item">
             <div className="callout-number">{(marginalWithoutLoan.totalRate * 100).toFixed(0)}%</div>
-            <div className="callout-label">Marginal rate at £50k (no loan)</div>
+            <div className="callout-label">Marginal rate at £{d3.format(",.0f")(exampleSalary)} (no loan)</div>
           </div>
           <div className="callout-item highlight">
-            <div className="callout-number">+{marginalDiff.toFixed(0)}pp</div>
+            <div className="callout-number">{hasLoan ? `+${marginalDiff.toFixed(0)}pp` : "—"}</div>
             <div className="callout-label">Difference</div>
           </div>
         </div>
@@ -570,9 +650,8 @@ export default function StudentLoanCalculator() {
       <section className="narrative-section">
         <h2>Impact on take-home pay</h2>
         <p>
-          At £50,000 gross salary, a worker with a Plan 2 loan receives <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> net,
-          compared to <strong>£{d3.format(",.0f")(withoutLoan.netIncome)}</strong> for a worker without a loan—a
-          difference of <strong>£{d3.format(",.0f")(annualRepayment)}</strong> per year.
+          At £{d3.format(",.0f")(exampleSalary)} gross salary, {hasLoan ? `a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan receives` : "a worker receives"} <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> net
+          {hasLoan && <>, compared to <strong>£{d3.format(",.0f")(withoutLoan.netIncome)}</strong> for a worker without a loan—a difference of <strong>£{d3.format(",.0f")(annualRepayment)}</strong> per year</>}.
         </p>
 
         <div className="narrative-chart-container">
@@ -608,40 +687,13 @@ export default function StudentLoanCalculator() {
         </p>
       </section>
 
-      {/* Parameters */}
-      <section className="narrative-section">
-        <h2>Parameters</h2>
-        <div className="params-controls">
-          <div className="control-row">
-            <label>Tax year:</label>
-            <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
-              <option value={2026}>2026/27</option>
-              <option value={2027}>2027/28</option>
-              <option value={2028}>2028/29</option>
-              <option value={2029}>2029/30</option>
-              <option value={2030}>2030/31</option>
-            </select>
-          </div>
-          <div className="control-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={showPostgrad}
-                onChange={(e) => setShowPostgrad(e.target.checked)}
-              />
-              Include postgraduate loan (6% above £{d3.format(",.0f")(params.slPostgradThreshold)})
-            </label>
-          </div>
-        </div>
-      </section>
-
       {/* Methodology */}
       <footer className="narrative-footer">
         <h3>Methodology</h3>
         <p>
           Analysis based on {selectedYear}/{selectedYear + 1 - 2000} tax year parameters.
-          Calculations assume employment income only. Student loan repayments use Plan 2 terms
-          (9% of earnings above £{d3.format(",.0f")(params.slPlan2Threshold)}).
+          Calculations assume employment income only.
+          {hasLoan && ` ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} repayments: 9% of earnings above £${d3.format(",.0f")(planThreshold)}.`}
           {showPostgrad && ` Postgraduate loan: 6% above £${d3.format(",.0f")(params.slPostgradThreshold)}.`}
         </p>
         <p className="source-link">
