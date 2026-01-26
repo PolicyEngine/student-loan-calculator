@@ -370,7 +370,20 @@ export default function StudentLoanCalculator() {
       .attr("fill-opacity", 0.7)
       .attr("d", areaSL);
 
-    // Line for "without loan" comparison
+    // Line for "with loan" (solid)
+    const lineWithLoan = d3.line()
+      .x((d) => x(d.income))
+      .y((d) => y(d.withLoan))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(marginalRateData)
+      .attr("fill", "none")
+      .attr("stroke", "#4B5563")
+      .attr("stroke-width", 2.5)
+      .attr("d", lineWithLoan);
+
+    // Line for "without loan" (dashed)
     const lineWithoutLoan = d3.line()
       .x((d) => x(d.income))
       .y((d) => y(d.withoutLoan))
@@ -379,7 +392,7 @@ export default function StudentLoanCalculator() {
     g.append("path")
       .datum(marginalRateData)
       .attr("fill", "none")
-      .attr("stroke", COLORS.withoutLoan)
+      .attr("stroke", "#4B5563")
       .attr("stroke-width", 2.5)
       .attr("stroke-dasharray", "6,3")
       .attr("d", lineWithoutLoan);
@@ -686,14 +699,15 @@ export default function StudentLoanCalculator() {
               <div className="chart-container">
                 <h3 className="chart-title">Marginal deduction rate by income</h3>
                 <p className="chart-subtitle">
-                  Stacked breakdown shows how income tax, NI, and student loan combine. The dashed line shows the rate without a student loan. At higher rates, Plan 2 graduates keep only 49p per pound.
+                  Stacked breakdown shows how income tax, NI, and student loan combine. The solid line shows the total rate with a student loan, the dashed line without. At higher rates, Plan 2 graduates keep only 49p per pound.
                 </p>
                 <div ref={chartRef} className="chart"></div>
                 <div className="legend">
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
-                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan, height: "2px", borderRadius: 0 }}></div><span>Without loan (dashed)</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: "#4B5563", height: "2px", borderRadius: 0 }}></div><span>With loan (solid)</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: "#4B5563", height: "2px", borderRadius: 0, borderTop: "2px dashed #4B5563", backgroundColor: "transparent" }}></div><span>Without loan (dashed)</span></div>
                 </div>
               </div>
 
