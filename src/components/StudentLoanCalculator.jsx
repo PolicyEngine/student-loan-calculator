@@ -556,12 +556,12 @@ export default function StudentLoanCalculator() {
         .attr("cx", x(calculatedInputs.salary)).attr("cy", y(netWithLoan)).attr("r", 6)
         .attr("fill", COLORS.withLoan).attr("stroke", "#fff").attr("stroke-width", 2);
 
-      // Gap annotation
+      // Gap annotation - positioned at top right of vertical line
       const gap = netWithoutLoan - netWithLoan;
       if (gap > 0) {
-        const midY = (y(netWithLoan) + y(netWithoutLoan)) / 2;
         g.append("text")
-          .attr("x", x(calculatedInputs.salary) + 10).attr("y", midY)
+          .attr("x", x(calculatedInputs.salary) + 8).attr("y", 15)
+          .attr("text-anchor", "start")
           .attr("font-size", "11px").attr("font-weight", "600").attr("fill", COLORS.studentLoan)
           .text(`-£${d3.format(",.0f")(gap)}`);
       }
