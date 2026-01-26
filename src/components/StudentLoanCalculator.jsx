@@ -411,7 +411,7 @@ export default function StudentLoanCalculator() {
         .attr("cx", x(calculatedInputs.salary)).attr("cy", y(currentRate)).attr("r", 8)
         .attr("fill", hasLoan ? COLORS.withLoan : COLORS.withoutLoan).attr("stroke", "#fff").attr("stroke-width", 2);
       g.append("text")
-        .attr("x", x(calculatedInputs.salary)).attr("y", y(currentRate) - 15).attr("text-anchor", "middle")
+        .attr("x", x(calculatedInputs.salary) + 8).attr("y", 15).attr("text-anchor", "start")
         .attr("font-size", "12px").attr("font-weight", "600").attr("fill", "#374151")
         .text(`${currentRate.toFixed(0)}%`);
     }
