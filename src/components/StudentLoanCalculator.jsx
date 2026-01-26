@@ -16,9 +16,23 @@ const DEFAULT_PARAMS = {
   niUEL: 50270,
   niMainRate: 0.08,
   niHigherRate: 0.02,
-  slPlan2Threshold: 29385,
   slRepaymentRate: 0.09,
+  slPlan1Threshold: 27039,
+  slPlan2Threshold: 29385,
+  slPlan4Threshold: 33970,
+  slPlan5Threshold: 25000,
+  slPostgradThreshold: 22722,
+  slPostgradRate: 0.06,
 };
+
+// Student loan plan options
+const PLAN_OPTIONS = [
+  { value: "none", label: "No student loan", threshold: null },
+  { value: "plan1", label: "Plan 1", threshold: "slPlan1Threshold", description: "Started before Sept 2012 (Eng/Wales) or Scotland/NI" },
+  { value: "plan2", label: "Plan 2", threshold: "slPlan2Threshold", description: "Started Sept 2012+ (England/Wales)" },
+  { value: "plan4", label: "Plan 4", threshold: "slPlan4Threshold", description: "Scotland (from Sept 2021)" },
+  { value: "plan5", label: "Plan 5", threshold: "slPlan5Threshold", description: "Started Aug 2023+ (England)" },
+];
 
 // Colours following PolicyEngine design system (from UK Autumn Budget dashboard)
 const COLORS = {
@@ -55,11 +69,23 @@ const SLIDER_CONFIGS = [
   },
 ];
 
+// Get threshold for a given plan
+function getPlanThreshold(params, plan) {
+  const thresholds = {
+    plan1: params.slPlan1Threshold,
+    plan2: params.slPlan2Threshold,
+    plan4: params.slPlan4Threshold,
+    plan5: params.slPlan5Threshold,
+  };
+  return thresholds[plan] || null;
+}
+
 // Calculate marginal rate at a given income using provided params
-function calculateMarginalRate(grossIncome, params, hasStudentLoan = false) {
+function calculateMarginalRate(grossIncome, params, plan = "none", hasPostgrad = false) {
   let itRate = 0;
   let niRate = 0;
   let slRate = 0;
+  let postgradRate = 0;
 
   if (grossIncome <= params.personalAllowance) {
     itRate = 0;
@@ -86,8 +112,15 @@ function calculateMarginalRate(grossIncome, params, hasStudentLoan = false) {
     niRate = params.niHigherRate;
   }
 
-  if (hasStudentLoan && grossIncome > params.slPlan2Threshold) {
+  // Undergraduate loan
+  const planThreshold = getPlanThreshold(params, plan);
+  if (planThreshold && grossIncome > planThreshold) {
     slRate = params.slRepaymentRate;
+  }
+
+  // Postgraduate loan (concurrent)
+  if (hasPostgrad && grossIncome > params.slPostgradThreshold) {
+    postgradRate = params.slPostgradRate;
   }
 
   return {
@@ -95,12 +128,13 @@ function calculateMarginalRate(grossIncome, params, hasStudentLoan = false) {
     incomeTaxRate: itRate,
     niRate,
     studentLoanRate: slRate,
-    totalRate: itRate + niRate + slRate,
+    postgradRate,
+    totalRate: itRate + niRate + slRate + postgradRate,
   };
 }
 
 // Calculate actual deductions using provided params
-function calculateDeductions(grossIncome, params, hasStudentLoan = false) {
+function calculateDeductions(grossIncome, params, plan = "none", hasPostgrad = false) {
   let incomeTax = 0;
   let effectivePA = params.personalAllowance;
 
@@ -134,9 +168,17 @@ function calculateDeductions(grossIncome, params, hasStudentLoan = false) {
     }
   }
 
+  // Undergraduate loan
   let studentLoan = 0;
-  if (hasStudentLoan && grossIncome > params.slPlan2Threshold) {
-    studentLoan = (grossIncome - params.slPlan2Threshold) * params.slRepaymentRate;
+  const planThreshold = getPlanThreshold(params, plan);
+  if (planThreshold && grossIncome > planThreshold) {
+    studentLoan = (grossIncome - planThreshold) * params.slRepaymentRate;
+  }
+
+  // Postgraduate loan
+  let postgradLoan = 0;
+  if (hasPostgrad && grossIncome > params.slPostgradThreshold) {
+    postgradLoan = (grossIncome - params.slPostgradThreshold) * params.slPostgradRate;
   }
 
   return {
@@ -144,17 +186,18 @@ function calculateDeductions(grossIncome, params, hasStudentLoan = false) {
     incomeTax,
     ni,
     studentLoan,
-    totalDeductions: incomeTax + ni + studentLoan,
-    netIncome: grossIncome - incomeTax - ni - studentLoan,
+    postgradLoan,
+    totalDeductions: incomeTax + ni + studentLoan + postgradLoan,
+    netIncome: grossIncome - incomeTax - ni - studentLoan - postgradLoan,
   };
 }
 
 // Generate marginal rate data using provided params
-function generateMarginalRateData(params) {
+function generateMarginalRateData(params, plan = "plan2", hasPostgrad = false) {
   const data = [];
   for (let income = 0; income <= 150000; income += 500) {
-    const withLoan = calculateMarginalRate(income, params, true);
-    const withoutLoan = calculateMarginalRate(income, params, false);
+    const withLoan = calculateMarginalRate(income, params, plan, hasPostgrad);
+    const withoutLoan = calculateMarginalRate(income, params, "none", false);
     data.push({
       income,
       withLoan: withLoan.totalRate * 100,
@@ -162,6 +205,7 @@ function generateMarginalRateData(params) {
       incomeTax: withLoan.incomeTaxRate * 100,
       ni: withLoan.niRate * 100,
       studentLoan: withLoan.studentLoanRate * 100,
+      postgrad: (withLoan.postgradRate || 0) * 100,
       difference: (withLoan.totalRate - withoutLoan.totalRate) * 100,
     });
   }
@@ -169,12 +213,13 @@ function generateMarginalRateData(params) {
 }
 
 // Generate age-based comparison data (1-year steps)
-function generateAgeData(selectedIncome, params) {
+function generateAgeData(selectedIncome, params, plan = "plan2", hasPostgrad = false) {
   const data = [];
-  // Ages 22-60, Plan 2 applies to those who started uni after 2012 (born ~1994+, so under ~32 in 2026)
+  // Ages 22-60
   for (let age = 22; age <= 60; age++) {
-    const hasLoan = age < 32; // Born after 1994, started uni 2012+
-    const rates = calculateMarginalRate(selectedIncome, params, hasLoan);
+    // Determine if this age would have this loan type
+    const hasLoan = age < 40; // Simplified: assume under 40 could have any plan
+    const rates = calculateMarginalRate(selectedIncome, params, hasLoan ? plan : "none", hasLoan ? hasPostgrad : false);
     data.push({
       age,
       hasLoan,
@@ -185,11 +230,12 @@ function generateAgeData(selectedIncome, params) {
 }
 
 // Generate take-home pay data using provided params
-function generateTakeHomeData(params) {
+function generateTakeHomeData(params, plan = "plan2", hasPostgrad = false) {
   const data = [];
+  const planThreshold = getPlanThreshold(params, plan) || 0;
   for (let income = 0; income <= 150000; income += 2500) {
-    const withLoan = calculateDeductions(income, params, true);
-    const withoutLoan = calculateDeductions(income, params, false);
+    const withLoan = calculateDeductions(income, params, plan, hasPostgrad);
+    const withoutLoan = calculateDeductions(income, params, "none", false);
     data.push({
       income,
       withLoan: Math.round(withLoan.netIncome),
@@ -215,8 +261,13 @@ function parseParamsRow(row) {
     niUEL: parseFloat(row.ni_upper_earnings_limit),
     niMainRate: parseFloat(row.ni_main_rate),
     niHigherRate: parseFloat(row.ni_higher_rate),
-    slPlan2Threshold: parseFloat(row.sl_plan2_threshold),
     slRepaymentRate: parseFloat(row.sl_repayment_rate),
+    slPlan1Threshold: parseFloat(row.sl_plan1_threshold),
+    slPlan2Threshold: parseFloat(row.sl_plan2_threshold),
+    slPlan4Threshold: parseFloat(row.sl_plan4_threshold),
+    slPlan5Threshold: parseFloat(row.sl_plan5_threshold),
+    slPostgradThreshold: parseFloat(row.sl_postgrad_threshold),
+    slPostgradRate: parseFloat(row.sl_postgrad_rate),
   };
 }
 
@@ -226,12 +277,16 @@ export default function StudentLoanCalculator() {
     salary: 50000,
     age: 28,
     year: 2026,
+    plan: "plan2",
+    hasPostgrad: false,
   });
   // Calculated values (only change on Calculate click)
   const [calculatedInputs, setCalculatedInputs] = useState({
     salary: 50000,
     age: 28,
     year: 2026,
+    plan: "plan2",
+    hasPostgrad: false,
   });
   const [hasCalculated, setHasCalculated] = useState(false);
   const [allParams, setAllParams] = useState({});
@@ -277,35 +332,48 @@ export default function StudentLoanCalculator() {
     setHasCalculated(true);
   };
 
-  // Get params for calculated year (not input year)
+  // Get params for calculated year (used for results)
   const params = useMemo(() => {
     if (!paramsLoaded) return DEFAULT_PARAMS;
     return allParams[calculatedInputs.year] || DEFAULT_PARAMS;
   }, [allParams, calculatedInputs.year, paramsLoaded]);
 
-  const marginalRateData = useMemo(() => generateMarginalRateData(params), [params]);
-  const ageData = useMemo(() => generateAgeData(calculatedInputs.salary, params), [calculatedInputs.salary, params]);
-  const takeHomeData = useMemo(() => generateTakeHomeData(params), [params]);
+  // Get params for input year (used for sidebar display)
+  const inputParams = useMemo(() => {
+    if (!paramsLoaded) return DEFAULT_PARAMS;
+    return allParams[inputs.year] || DEFAULT_PARAMS;
+  }, [allParams, inputs.year, paramsLoaded]);
 
-  const hasLoan = calculatedInputs.age < 40;
+  const marginalRateData = useMemo(() => generateMarginalRateData(params, calculatedInputs.plan, calculatedInputs.hasPostgrad), [params, calculatedInputs.plan, calculatedInputs.hasPostgrad]);
+  const ageData = useMemo(() => generateAgeData(calculatedInputs.salary, params, calculatedInputs.plan, calculatedInputs.hasPostgrad), [calculatedInputs.salary, params, calculatedInputs.plan, calculatedInputs.hasPostgrad]);
+  const takeHomeData = useMemo(() => generateTakeHomeData(params, calculatedInputs.plan, calculatedInputs.hasPostgrad), [params, calculatedInputs.plan, calculatedInputs.hasPostgrad]);
 
-  const withLoan = useMemo(() => calculateDeductions(calculatedInputs.salary, params, true), [calculatedInputs.salary, params]);
-  const withoutLoan = useMemo(() => calculateDeductions(calculatedInputs.salary, params, false), [calculatedInputs.salary, params]);
-  const marginalWithLoan = useMemo(() => calculateMarginalRate(calculatedInputs.salary, params, true), [calculatedInputs.salary, params]);
-  const marginalWithoutLoan = useMemo(() => calculateMarginalRate(calculatedInputs.salary, params, false), [calculatedInputs.salary, params]);
+  const hasLoan = calculatedInputs.plan !== "none";
+  const planThreshold = getPlanThreshold(params, calculatedInputs.plan);
+
+  const withLoan = useMemo(() => calculateDeductions(calculatedInputs.salary, params, calculatedInputs.plan, calculatedInputs.hasPostgrad), [calculatedInputs.salary, params, calculatedInputs.plan, calculatedInputs.hasPostgrad]);
+  const withoutLoan = useMemo(() => calculateDeductions(calculatedInputs.salary, params, "none", false), [calculatedInputs.salary, params]);
+  const marginalWithLoan = useMemo(() => calculateMarginalRate(calculatedInputs.salary, params, calculatedInputs.plan, calculatedInputs.hasPostgrad), [calculatedInputs.salary, params, calculatedInputs.plan, calculatedInputs.hasPostgrad]);
+  const marginalWithoutLoan = useMemo(() => calculateMarginalRate(calculatedInputs.salary, params, "none", false), [calculatedInputs.salary, params]);
 
   const summaryStats = useMemo(() => {
     const marginalDiff = (marginalWithLoan.totalRate - marginalWithoutLoan.totalRate) * 100;
 
     return {
-      annualRepayment: withLoan.studentLoan,
+      annualRepayment: withLoan.studentLoan + withLoan.postgradLoan,
       marginalRate: marginalWithLoan.totalRate * 100,
       marginalDiff,
     };
   }, [withLoan, marginalWithLoan, marginalWithoutLoan]);
 
   const handleInputChange = (id, value) => {
-    setInputs((prev) => ({ ...prev, [id]: parseFloat(value) }));
+    if (id === "plan") {
+      setInputs((prev) => ({ ...prev, [id]: value }));
+    } else if (id === "hasPostgrad") {
+      setInputs((prev) => ({ ...prev, [id]: value }));
+    } else {
+      setInputs((prev) => ({ ...prev, [id]: parseFloat(value) }));
+    }
   };
 
   // Chart 1: Marginal Rate with Stacked Breakdown
@@ -504,7 +572,7 @@ export default function StudentLoanCalculator() {
           tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
             .html(`<div class="tooltip-title">Age ${d.age}</div>
               <div class="tooltip-row"><span>Marginal rate</span><span style="font-weight:600">${d.totalRate.toFixed(0)}%</span></div>
-              <div class="tooltip-row"><span>Student loan</span><span style="font-weight:600">${d.hasLoan ? "Yes (Plan 2)" : "No"}</span></div>`);
+              <div class="tooltip-row"><span>Student loan</span><span style="font-weight:600">${d.hasLoan ? "Yes" : "No"}</span></div>`);
         })
         .on("mouseout", function () {
           d3.select(this).attr("opacity", 1);
@@ -606,7 +674,7 @@ export default function StudentLoanCalculator() {
           .html(`<div class="tooltip-title">£${d3.format(",.0f")(d.income)} gross</div>
             <div class="tooltip-section">
               <div class="tooltip-row"><span style="color:${COLORS.withoutLoan}">● No student loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.withoutLoan)}</span></div>
-              <div class="tooltip-row"><span style="color:${COLORS.withLoan}">● With Plan 2 loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.withLoan)}</span></div>
+              <div class="tooltip-row"><span style="color:${COLORS.withLoan}">● With student loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.withLoan)}</span></div>
             </div>
             <div class="tooltip-row tooltip-total"><span>Difference</span><span style="color:${COLORS.studentLoan};font-weight:700">-£${d3.format(",.0f")(gap)}</span></div>`);
       })
@@ -619,7 +687,7 @@ export default function StudentLoanCalculator() {
         <div className="lifecycle-header-content">
           <h2>Student loan as effective National Insurance</h2>
           <p className="lifecycle-subtitle">
-            Compare marginal deduction rates for workers with and without Plan 2 student loans
+            Compare marginal deduction rates for workers with and without student loans
           </p>
         </div>
       </div>
@@ -667,6 +735,40 @@ export default function StudentLoanCalculator() {
             </select>
           </div>
 
+          <div className="control-group">
+            <label>Student loan plan</label>
+            <select
+              value={inputs.plan}
+              onChange={(e) => handleInputChange('plan', e.target.value)}
+              className="year-select"
+            >
+              {PLAN_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {inputs.plan !== "none" && (
+              <div className="plan-description">
+                {PLAN_OPTIONS.find(p => p.value === inputs.plan)?.description}
+              </div>
+            )}
+          </div>
+
+          <div className="control-group checkbox-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={inputs.hasPostgrad}
+                onChange={(e) => handleInputChange('hasPostgrad', e.target.checked)}
+              />
+              <span>Postgraduate loan</span>
+            </label>
+            <div className="plan-description">
+              Masters/doctoral loan (6% above £{d3.format(",.0f")(inputParams.slPostgradThreshold || 22722)})
+            </div>
+          </div>
+
           <button className="calculate-button" onClick={handleCalculate}>Calculate</button>
         </div>
 
@@ -694,7 +796,7 @@ export default function StudentLoanCalculator() {
                 <div className="summary-item">
                   <div className="summary-label">
                     {hasLoan ? "Annual student loan" : "No student loan"}
-                    <span className="info-icon" data-tooltip={hasLoan ? `9% of income above £${d3.format(",.0f")(params.slPlan2Threshold)} goes to Plan 2 student loan repayments each year.` : "You don't have a Plan 2 student loan."}>ⓘ</span>
+                    <span className="info-icon" data-tooltip={hasLoan ? `9% of income above £${d3.format(",.0f")(planThreshold)} goes to student loan repayments each year.${calculatedInputs.hasPostgrad ? ` Plus 6% postgrad above £${d3.format(",.0f")(params.slPostgradThreshold)}.` : ""}` : "You don't have a student loan."}>ⓘ</span>
                   </div>
                   <div className={`summary-value ${hasLoan ? "negative" : ""}`}>
                     {hasLoan ? `-£${d3.format(",.0f")(withLoan.studentLoan)}` : "£0"}
@@ -703,7 +805,7 @@ export default function StudentLoanCalculator() {
                 <div className="summary-item">
                   <div className="summary-label">
                     Rate vs older worker
-                    <span className="info-icon" data-tooltip={hasLoan ? "Workers under 32 with Plan 2 loans face higher marginal rates than older workers on the same salary due to the 9% student loan repayment." : "Without a student loan, your marginal rate matches older workers."}>ⓘ</span>
+                    <span className="info-icon" data-tooltip={hasLoan ? "Workers with student loans face higher marginal rates than those without due to the additional repayment percentage." : "Without a student loan, your marginal rate matches workers without loans."}>ⓘ</span>
                   </div>
                   <div className={`summary-value ${hasLoan ? "negative" : ""}`}>
                     {hasLoan ? `+${summaryStats.marginalDiff.toFixed(0)}pp` : "Same"}
@@ -715,11 +817,16 @@ export default function StudentLoanCalculator() {
               <div className="deductions-box">
                 <div className="deductions-header">
                   <div className="status-info">
-                    <span className="status-badge with-loan">Plan 2 loan holder</span>
-                    <span className="status-note">Born after ~1994, started university 2012+</span>
+                    <span className="status-badge with-loan">
+                      {hasLoan ? PLAN_OPTIONS.find(p => p.value === calculatedInputs.plan)?.label : "No student loan"}
+                      {calculatedInputs.hasPostgrad && " + Postgrad"}
+                    </span>
+                    <span className="status-note">
+                      {hasLoan && PLAN_OPTIONS.find(p => p.value === calculatedInputs.plan)?.description}
+                    </span>
                   </div>
                 </div>
-                <div className="deductions-grid">
+                <div className={`deductions-grid ${calculatedInputs.hasPostgrad ? "with-postgrad" : ""}`}>
                   <div className="deduction-item">
                     <span className="deduction-label">Gross salary</span>
                     <span className="deduction-value">£{d3.format(",.0f")(calculatedInputs.salary)}</span>
@@ -732,10 +839,18 @@ export default function StudentLoanCalculator() {
                     <span className="deduction-label">National Insurance</span>
                     <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.ni)}</span>
                   </div>
-                  <div className="deduction-item">
-                    <span className="deduction-label">Student loan</span>
-                    <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.studentLoan)}</span>
-                  </div>
+                  {hasLoan && (
+                    <div className="deduction-item">
+                      <span className="deduction-label">{PLAN_OPTIONS.find(p => p.value === calculatedInputs.plan)?.label} loan</span>
+                      <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.studentLoan)}</span>
+                    </div>
+                  )}
+                  {calculatedInputs.hasPostgrad && (
+                    <div className="deduction-item">
+                      <span className="deduction-label">Postgrad loan</span>
+                      <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.postgradLoan)}</span>
+                    </div>
+                  )}
                   <div className="deduction-item total">
                     <span className="deduction-label">Take-home pay</span>
                     <span className="deduction-value positive">£{d3.format(",.0f")(withLoan.netIncome)}</span>
@@ -747,7 +862,7 @@ export default function StudentLoanCalculator() {
               <div className="chart-container">
                 <h3 className="chart-title">Marginal deduction rate by income</h3>
                 <p className="chart-subtitle">
-                  Stacked breakdown shows how income tax, NI, and student loan combine. The solid line shows the total rate with a student loan, the dashed line without. At higher rates, Plan 2 graduates keep only 49p per pound.
+                  Stacked breakdown shows how income tax, NI, and student loan combine. The solid line shows the total rate with a student loan, the dashed line without.
                 </p>
                 <div ref={chartRef} className="chart"></div>
                 <div className="legend">
@@ -763,11 +878,11 @@ export default function StudentLoanCalculator() {
               <div className="chart-container">
                 <h3 className="chart-title">Marginal rate by age at £{d3.format(",.0f")(calculatedInputs.salary)}</h3>
                 <p className="chart-subtitle">
-                  Workers born after ~1994 (under 32 in 2026) have Plan 2 loans and face 9pp higher marginal rates than older workers at the same salary. Adjust salary in the sidebar.
+                  Workers with student loans face higher marginal rates than those without at the same salary level.
                 </p>
                 <div ref={ageChartRef} className="chart chart-short"></div>
                 <div className="legend">
-                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Has Plan 2 loan (under 32)</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Has student loan</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan (32+)</span></div>
                 </div>
               </div>
@@ -776,12 +891,12 @@ export default function StudentLoanCalculator() {
               <div className="chart-container">
                 <h3 className="chart-title">Take-home pay comparison</h3>
                 <p className="chart-subtitle">
-                  The growing gap shows how much less a Plan 2 graduate takes home vs someone without a loan at the same salary.
+                  The growing gap shows how much less someone with a student loan takes home vs someone without at the same salary.
                 </p>
                 <div ref={takeHomeChartRef} className="chart chart-short"></div>
                 <div className="legend">
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan</span></div>
-                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>With Plan 2 loan</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>With student loan</span></div>
                 </div>
               </div>
             </>
