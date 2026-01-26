@@ -433,7 +433,7 @@ export default function StudentLoanCalculator() {
             <div class="tooltip-row"><span>Without loan</span><span style="color:${COLORS.withoutLoan};font-weight:600">${d.withoutLoan.toFixed(0)}%</span></div>`);
       })
       .on("mouseout", () => tooltip.style("opacity", 0));
-  }, [marginalRateData, calculatedInputs.salary, hasLoan, marginalWithLoan, marginalWithoutLoan]);
+  }, [marginalRateData, calculatedInputs.salary, hasLoan, marginalWithLoan, marginalWithoutLoan, hasCalculated]);
 
   // Chart 2: Age-based comparison (1-year steps)
   useEffect(() => {
@@ -489,7 +489,7 @@ export default function StudentLoanCalculator() {
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
       .attr("font-size", "12px").attr("fill", "#64748b").text("Age");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
-  }, [ageData]);
+  }, [ageData, hasCalculated]);
 
   // Chart 3: Take-Home Pay
   useEffect(() => {
@@ -559,7 +559,7 @@ export default function StudentLoanCalculator() {
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
       .attr("font-size", "12px").attr("fill", "#64748b").text("Gross income");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `£${d / 1000}k`).ticks(6));
-  }, [takeHomeData, calculatedInputs.salary, withLoan, withoutLoan]);
+  }, [takeHomeData, calculatedInputs.salary, withLoan, withoutLoan, hasCalculated]);
 
   return (
     <div className="student-loan-calculator">
