@@ -230,6 +230,7 @@ export default function StudentLoanCalculator() {
     age: 28,
     year: 2026,
   });
+  const [hasCalculated, setHasCalculated] = useState(false);
   const [allParams, setAllParams] = useState({});
   const [paramsLoaded, setParamsLoaded] = useState(false);
   const chartRef = useRef(null);
@@ -270,6 +271,7 @@ export default function StudentLoanCalculator() {
   // Handle Calculate button click
   const handleCalculate = () => {
     setCalculatedInputs({ ...inputs });
+    setHasCalculated(true);
   };
 
   // Get params for calculated year (not input year)
@@ -618,100 +620,110 @@ export default function StudentLoanCalculator() {
 
         {/* Main content */}
         <div className="lifecycle-main">
-          {/* Summary cards */}
-          <div className="lifecycle-summary">
-            <div className="summary-item highlighted">
-              <div className="summary-label">Your marginal rate</div>
-              <div className="summary-value">
-                {(hasLoan ? marginalWithLoan.totalRate * 100 : marginalWithoutLoan.totalRate * 100).toFixed(0)}%
-              </div>
+          {!hasCalculated ? (
+            <div className="placeholder-box">
+              <div className="placeholder-icon">📊</div>
+              <h3>Enter your details to see results</h3>
+              <p>Adjust your salary, age, and tax year in the sidebar, then click Calculate to see your marginal deduction rates and how they compare to other workers.</p>
             </div>
-            <div className="summary-item">
-              <div className="summary-label">{hasLoan ? "Annual student loan" : "No student loan"}</div>
-              <div className={`summary-value ${hasLoan ? "negative" : ""}`}>
-                {hasLoan ? `-£${d3.format(",.0f")(withLoan.studentLoan)}` : "£0"}
+          ) : (
+            <>
+              {/* Summary cards */}
+              <div className="lifecycle-summary">
+                <div className="summary-item highlighted">
+                  <div className="summary-label">Your marginal rate</div>
+                  <div className="summary-value">
+                    {(hasLoan ? marginalWithLoan.totalRate * 100 : marginalWithoutLoan.totalRate * 100).toFixed(0)}%
+                  </div>
+                </div>
+                <div className="summary-item">
+                  <div className="summary-label">{hasLoan ? "Annual student loan" : "No student loan"}</div>
+                  <div className={`summary-value ${hasLoan ? "negative" : ""}`}>
+                    {hasLoan ? `-£${d3.format(",.0f")(withLoan.studentLoan)}` : "£0"}
+                  </div>
+                </div>
+                <div className="summary-item">
+                  <div className="summary-label">Rate vs older worker</div>
+                  <div className={`summary-value ${hasLoan ? "negative" : ""}`}>
+                    {hasLoan ? `+${summaryStats.marginalDiff.toFixed(0)}pp` : "Same"}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="summary-item">
-              <div className="summary-label">Rate vs older worker</div>
-              <div className={`summary-value ${hasLoan ? "negative" : ""}`}>
-                {hasLoan ? `+${summaryStats.marginalDiff.toFixed(0)}pp` : "Same"}
-              </div>
-            </div>
-          </div>
 
-          {/* Your deductions summary box */}
-          <div className="deductions-box">
-            <div className="deductions-header">
-              <div className="status-info">
-                <span className="status-badge with-loan">Plan 2 loan holder</span>
-                <span className="status-note">Born after ~1994, started university 2012+</span>
+              {/* Your deductions summary box */}
+              <div className="deductions-box">
+                <div className="deductions-header">
+                  <div className="status-info">
+                    <span className="status-badge with-loan">Plan 2 loan holder</span>
+                    <span className="status-note">Born after ~1994, started university 2012+</span>
+                  </div>
+                </div>
+                <div className="deductions-grid">
+                  <div className="deduction-item">
+                    <span className="deduction-label">Gross salary</span>
+                    <span className="deduction-value">£{d3.format(",.0f")(calculatedInputs.salary)}</span>
+                  </div>
+                  <div className="deduction-item">
+                    <span className="deduction-label">Income tax</span>
+                    <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.incomeTax)}</span>
+                  </div>
+                  <div className="deduction-item">
+                    <span className="deduction-label">National Insurance</span>
+                    <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.ni)}</span>
+                  </div>
+                  <div className="deduction-item">
+                    <span className="deduction-label">Student loan</span>
+                    <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.studentLoan)}</span>
+                  </div>
+                  <div className="deduction-item total">
+                    <span className="deduction-label">Take-home pay</span>
+                    <span className="deduction-value positive">£{d3.format(",.0f")(withLoan.netIncome)}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="deductions-grid">
-              <div className="deduction-item">
-                <span className="deduction-label">Gross salary</span>
-                <span className="deduction-value">£{d3.format(",.0f")(calculatedInputs.salary)}</span>
-              </div>
-              <div className="deduction-item">
-                <span className="deduction-label">Income tax</span>
-                <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.incomeTax)}</span>
-              </div>
-              <div className="deduction-item">
-                <span className="deduction-label">National Insurance</span>
-                <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.ni)}</span>
-              </div>
-              <div className="deduction-item">
-                <span className="deduction-label">Student loan</span>
-                <span className="deduction-value negative">-£{d3.format(",.0f")(withLoan.studentLoan)}</span>
-              </div>
-              <div className="deduction-item total">
-                <span className="deduction-label">Take-home pay</span>
-                <span className="deduction-value positive">£{d3.format(",.0f")(withLoan.netIncome)}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Chart 1: Marginal Rate with Breakdown */}
-          <div className="chart-container">
-            <h3 className="chart-title">Marginal deduction rate by income</h3>
-            <p className="chart-subtitle">
-              Stacked breakdown shows how income tax, NI, and student loan combine. The dashed line shows the rate without a student loan. At higher rates, Plan 2 graduates keep only 49p per pound.
-            </p>
-            <div ref={chartRef} className="chart"></div>
-            <div className="legend">
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan, height: "2px", borderRadius: 0 }}></div><span>Without loan (dashed)</span></div>
-            </div>
-          </div>
+              {/* Chart 1: Marginal Rate with Breakdown */}
+              <div className="chart-container">
+                <h3 className="chart-title">Marginal deduction rate by income</h3>
+                <p className="chart-subtitle">
+                  Stacked breakdown shows how income tax, NI, and student loan combine. The dashed line shows the rate without a student loan. At higher rates, Plan 2 graduates keep only 49p per pound.
+                </p>
+                <div ref={chartRef} className="chart"></div>
+                <div className="legend">
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan, height: "2px", borderRadius: 0 }}></div><span>Without loan (dashed)</span></div>
+                </div>
+              </div>
 
-          {/* Chart 2: Age-based Comparison */}
-          <div className="chart-container">
-            <h3 className="chart-title">Marginal rate by age at £{d3.format(",.0f")(calculatedInputs.salary)}</h3>
-            <p className="chart-subtitle">
-              Workers born after ~1994 (under 32 in 2026) have Plan 2 loans and face 9pp higher marginal rates than older workers at the same salary. Adjust salary in the sidebar.
-            </p>
-            <div ref={ageChartRef} className="chart chart-short"></div>
-            <div className="legend">
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Has Plan 2 loan (under 32)</span></div>
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan (32+)</span></div>
-            </div>
-          </div>
+              {/* Chart 2: Age-based Comparison */}
+              <div className="chart-container">
+                <h3 className="chart-title">Marginal rate by age at £{d3.format(",.0f")(calculatedInputs.salary)}</h3>
+                <p className="chart-subtitle">
+                  Workers born after ~1994 (under 32 in 2026) have Plan 2 loans and face 9pp higher marginal rates than older workers at the same salary. Adjust salary in the sidebar.
+                </p>
+                <div ref={ageChartRef} className="chart chart-short"></div>
+                <div className="legend">
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Has Plan 2 loan (under 32)</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan (32+)</span></div>
+                </div>
+              </div>
 
-          {/* Chart 3: Take-Home Pay */}
-          <div className="chart-container">
-            <h3 className="chart-title">Take-home pay comparison</h3>
-            <p className="chart-subtitle">
-              The growing gap shows how much less a Plan 2 graduate takes home vs someone without a loan at the same salary.
-            </p>
-            <div ref={takeHomeChartRef} className="chart chart-short"></div>
-            <div className="legend">
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan</span></div>
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>With Plan 2 loan</span></div>
-            </div>
-          </div>
+              {/* Chart 3: Take-Home Pay */}
+              <div className="chart-container">
+                <h3 className="chart-title">Take-home pay comparison</h3>
+                <p className="chart-subtitle">
+                  The growing gap shows how much less a Plan 2 graduate takes home vs someone without a loan at the same salary.
+                </p>
+                <div ref={takeHomeChartRef} className="chart chart-short"></div>
+                <div className="legend">
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>With Plan 2 loan</span></div>
+                </div>
+              </div>
+            </>
+          )}
 
         </div>
       </div>

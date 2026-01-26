@@ -1,21 +1,21 @@
-/* Student Loan Tab - extends LifecycleCalculator styles */
+/* Student Loan Calculator */
 
 .student-loan-calculator {
   width: 100%;
   font-family: "Roboto", sans-serif;
   color: #374151;
+  font-size: 1rem;
 }
 
-/* Reuse lifecycle layout styles */
+/* Header */
 .student-loan-calculator .lifecycle-header {
-  padding: 24px 0 16px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 0 0 20px;
   margin-bottom: 24px;
 }
 
 .student-loan-calculator .lifecycle-header-content h2 {
   margin: 0 0 8px 0;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 600;
   color: #1e293b;
 }
@@ -23,7 +23,41 @@
 .student-loan-calculator .lifecycle-subtitle {
   margin: 0;
   color: #64748b;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
+}
+
+/* Placeholder box */
+.placeholder-box {
+  background: #f8fafc;
+  border: 2px dashed #e2e8f0;
+  border-radius: 16px;
+  padding: 60px 40px;
+  text-align: center;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+
+.placeholder-box h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.placeholder-box p {
+  margin: 0;
+  font-size: 1rem;
+  color: #64748b;
+  max-width: 400px;
+  line-height: 1.6;
 }
 
 /* About section */
@@ -51,10 +85,10 @@
 }
 
 .about-section .policy-box p {
-  margin: 0 0 12px 0;
-  font-size: 0.95rem;
+  margin: 0 0 16px 0;
+  font-size: 1rem;
   color: #475569;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .about-section .policy-box p:last-child {
