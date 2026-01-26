@@ -3,7 +3,7 @@
 .student-loan-calculator {
   width: 100%;
   font-family: "Roboto", sans-serif;
-  color: #374151;
+  color: #344054;
   font-size: 1rem;
 }
 
@@ -587,7 +587,7 @@
 }
 
 .student-loan-calculator .chart .grid line {
-  stroke: #e0e0e0;
+  stroke: #E2E8F0;
   stroke-dasharray: 4, 4;
 }
 
@@ -602,7 +602,7 @@
 
 .student-loan-calculator .chart .axis path,
 .student-loan-calculator .chart .axis line {
-  stroke: #e5e7eb;
+  stroke: #E2E8F0;
 }
 
 /* Legend */

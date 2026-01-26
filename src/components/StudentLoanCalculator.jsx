@@ -20,14 +20,17 @@ const DEFAULT_PARAMS = {
   slRepaymentRate: 0.09,
 };
 
-// Colours following the style guide
+// Colours following PolicyEngine design system
 const COLORS = {
-  primary: "#319795",
-  incomeTax: "#5A8FB8",
-  ni: "#5FB88A",
-  studentLoan: "#B8875A",
-  withLoan: "#319795",
-  withoutLoan: "#9CA3AF",
+  primary: "#319795",      // teal/500
+  incomeTax: "#026AA2",    // blue/700
+  ni: "#22C55E",           // success green
+  studentLoan: "#FEC601",  // warning yellow
+  withLoan: "#319795",     // teal/500
+  withoutLoan: "#9CA3AF",  // gray/400
+  text: "#101828",         // gray/900
+  textSecondary: "#475569", // secondary/600
+  border: "#E2E8F0",       // gray/200
 };
 
 // Slider configurations
@@ -379,7 +382,7 @@ export default function StudentLoanCalculator() {
     g.append("path")
       .datum(marginalRateData)
       .attr("fill", "none")
-      .attr("stroke", "#4B5563")
+      .attr("stroke", "#344054")
       .attr("stroke-width", 2.5)
       .attr("d", lineWithLoan);
 
@@ -392,7 +395,7 @@ export default function StudentLoanCalculator() {
     g.append("path")
       .datum(marginalRateData)
       .attr("fill", "none")
-      .attr("stroke", "#4B5563")
+      .attr("stroke", "#344054")
       .attr("stroke-width", 2.5)
       .attr("stroke-dasharray", "6,3")
       .attr("d", lineWithoutLoan);
@@ -405,14 +408,14 @@ export default function StudentLoanCalculator() {
       g.append("line")
         .attr("x1", x(calculatedInputs.salary)).attr("x2", x(calculatedInputs.salary))
         .attr("y1", 0).attr("y2", height)
-        .attr("stroke", "#374151").attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
+        .attr("stroke", "#344054").attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
 
       g.append("circle")
         .attr("cx", x(calculatedInputs.salary)).attr("cy", y(currentRate)).attr("r", 8)
         .attr("fill", hasLoan ? COLORS.withLoan : COLORS.withoutLoan).attr("stroke", "#fff").attr("stroke-width", 2);
       g.append("text")
         .attr("x", x(calculatedInputs.salary) + 8).attr("y", 15).attr("text-anchor", "start")
-        .attr("font-size", "12px").attr("font-weight", "600").attr("fill", "#374151")
+        .attr("font-size", "12px").attr("font-weight", "600").attr("fill", "#344054")
         .text(`${currentRate.toFixed(0)}%`);
     }
 
@@ -420,10 +423,10 @@ export default function StudentLoanCalculator() {
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(x).tickFormat((d) => `£${d / 1000}k`).ticks(6));
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
-      .attr("font-size", "12px").attr("fill", "#64748b").text("Gross income");
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Gross income");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
     g.append("text").attr("transform", "rotate(-90)").attr("x", -height / 2).attr("y", -50).attr("text-anchor", "middle")
-      .attr("font-size", "12px").attr("fill", "#64748b").text("Marginal deduction rate");
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Marginal deduction rate");
 
     // Tooltip
     const tooltip = d3.select(tooltipRef.current);
@@ -515,7 +518,7 @@ export default function StudentLoanCalculator() {
       .tickFormat((d) => d);
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
-      .attr("font-size", "12px").attr("fill", "#64748b").text("Age");
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Age");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
   }, [ageData, hasCalculated]);
 
@@ -561,7 +564,7 @@ export default function StudentLoanCalculator() {
       g.append("line")
         .attr("x1", x(calculatedInputs.salary)).attr("x2", x(calculatedInputs.salary))
         .attr("y1", 0).attr("y2", height)
-        .attr("stroke", "#374151").attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
+        .attr("stroke", "#344054").attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
 
       // Markers on both lines
       g.append("circle")
@@ -585,7 +588,7 @@ export default function StudentLoanCalculator() {
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(x).tickFormat((d) => `£${d / 1000}k`).ticks(6));
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
-      .attr("font-size", "12px").attr("fill", "#64748b").text("Gross income");
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Gross income");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `£${d / 1000}k`).ticks(6));
 
     // Tooltip
@@ -742,8 +745,8 @@ export default function StudentLoanCalculator() {
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
-                  <div className="legend-item"><div className="legend-color" style={{ background: "#4B5563", height: "2px", borderRadius: 0 }}></div><span>With loan</span></div>
-                  <div className="legend-item"><div className="legend-color" style={{ background: "#4B5563", height: "2px", borderRadius: 0, borderTop: "2px dashed #4B5563", backgroundColor: "transparent" }}></div><span>Without loan</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: "#344054", height: "2px", borderRadius: 0 }}></div><span>With loan</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: "#344054", height: "2px", borderRadius: 0, borderTop: "2px dashed #344054", backgroundColor: "transparent" }}></div><span>Without loan</span></div>
                 </div>
               </div>
 
