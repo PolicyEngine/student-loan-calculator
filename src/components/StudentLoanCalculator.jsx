@@ -383,20 +383,20 @@ export default function StudentLoanCalculator() {
       .attr("d", lineWithoutLoan);
 
     // Current salary marker
-    if (inputs.salary > 0) {
+    if (calculatedInputs.salary > 0) {
       const currentRate = hasLoan ? marginalWithLoan.totalRate * 100 : marginalWithoutLoan.totalRate * 100;
 
       // Vertical line at current salary
       g.append("line")
-        .attr("x1", x(inputs.salary)).attr("x2", x(inputs.salary))
+        .attr("x1", x(calculatedInputs.salary)).attr("x2", x(calculatedInputs.salary))
         .attr("y1", 0).attr("y2", height)
         .attr("stroke", "#374151").attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
 
       g.append("circle")
-        .attr("cx", x(inputs.salary)).attr("cy", y(currentRate)).attr("r", 8)
+        .attr("cx", x(calculatedInputs.salary)).attr("cy", y(currentRate)).attr("r", 8)
         .attr("fill", hasLoan ? COLORS.withLoan : COLORS.withoutLoan).attr("stroke", "#fff").attr("stroke-width", 2);
       g.append("text")
-        .attr("x", x(inputs.salary)).attr("y", y(currentRate) - 15).attr("text-anchor", "middle")
+        .attr("x", x(calculatedInputs.salary)).attr("y", y(currentRate) - 15).attr("text-anchor", "middle")
         .attr("font-size", "12px").attr("font-weight", "600").attr("fill", "#374151")
         .text(`${currentRate.toFixed(0)}%`);
     }
@@ -431,7 +431,7 @@ export default function StudentLoanCalculator() {
             <div class="tooltip-row"><span>Without loan</span><span style="color:${COLORS.withoutLoan};font-weight:600">${d.withoutLoan.toFixed(0)}%</span></div>`);
       })
       .on("mouseout", () => tooltip.style("opacity", 0));
-  }, [marginalRateData, inputs.salary, hasLoan, marginalWithLoan, marginalWithoutLoan]);
+  }, [marginalRateData, calculatedInputs.salary, hasLoan, marginalWithLoan, marginalWithoutLoan]);
 
   // Chart 2: Age-based comparison (1-year steps)
   useEffect(() => {
@@ -523,22 +523,22 @@ export default function StudentLoanCalculator() {
     g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withLoan).attr("stroke-width", 2.5).attr("d", lineWithLoan);
 
     // Current salary marker
-    if (inputs.salary > 0 && inputs.salary <= 150000) {
+    if (calculatedInputs.salary > 0 && calculatedInputs.salary <= 150000) {
       const netWithLoan = withLoan.netIncome;
       const netWithoutLoan = withoutLoan.netIncome;
 
       // Vertical line
       g.append("line")
-        .attr("x1", x(inputs.salary)).attr("x2", x(inputs.salary))
+        .attr("x1", x(calculatedInputs.salary)).attr("x2", x(calculatedInputs.salary))
         .attr("y1", 0).attr("y2", height)
         .attr("stroke", "#374151").attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
 
       // Markers on both lines
       g.append("circle")
-        .attr("cx", x(inputs.salary)).attr("cy", y(netWithoutLoan)).attr("r", 6)
+        .attr("cx", x(calculatedInputs.salary)).attr("cy", y(netWithoutLoan)).attr("r", 6)
         .attr("fill", COLORS.withoutLoan).attr("stroke", "#fff").attr("stroke-width", 2);
       g.append("circle")
-        .attr("cx", x(inputs.salary)).attr("cy", y(netWithLoan)).attr("r", 6)
+        .attr("cx", x(calculatedInputs.salary)).attr("cy", y(netWithLoan)).attr("r", 6)
         .attr("fill", COLORS.withLoan).attr("stroke", "#fff").attr("stroke-width", 2);
 
       // Gap annotation
@@ -546,7 +546,7 @@ export default function StudentLoanCalculator() {
       if (gap > 0) {
         const midY = (y(netWithLoan) + y(netWithoutLoan)) / 2;
         g.append("text")
-          .attr("x", x(inputs.salary) + 10).attr("y", midY)
+          .attr("x", x(calculatedInputs.salary) + 10).attr("y", midY)
           .attr("font-size", "11px").attr("font-weight", "600").attr("fill", COLORS.studentLoan)
           .text(`-£${d3.format(",.0f")(gap)}`);
       }
@@ -557,7 +557,7 @@ export default function StudentLoanCalculator() {
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
       .attr("font-size", "12px").attr("fill", "#64748b").text("Gross income");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `£${d / 1000}k`).ticks(6));
-  }, [takeHomeData, inputs.salary, withLoan, withoutLoan]);
+  }, [takeHomeData, calculatedInputs.salary, withLoan, withoutLoan]);
 
   return (
     <div className="student-loan-calculator">
@@ -651,7 +651,7 @@ export default function StudentLoanCalculator() {
             <div className="deductions-grid">
               <div className="deduction-item">
                 <span className="deduction-label">Gross salary</span>
-                <span className="deduction-value">£{d3.format(",.0f")(inputs.salary)}</span>
+                <span className="deduction-value">£{d3.format(",.0f")(calculatedInputs.salary)}</span>
               </div>
               <div className="deduction-item">
                 <span className="deduction-label">Income tax</span>
@@ -689,7 +689,7 @@ export default function StudentLoanCalculator() {
 
           {/* Chart 2: Age-based Comparison */}
           <div className="chart-container">
-            <h3 className="chart-title">Marginal rate by age at £{d3.format(",.0f")(inputs.salary)}</h3>
+            <h3 className="chart-title">Marginal rate by age at £{d3.format(",.0f")(calculatedInputs.salary)}</h3>
             <p className="chart-subtitle">
               Workers born after ~1994 (under 32 in 2026) have Plan 2 loans and face 9pp higher marginal rates than older workers at the same salary. Adjust salary in the sidebar.
             </p>
