@@ -40,6 +40,7 @@ const COLORS = {
   incomeTax: "#14B8A6",    // Teal 500 (good for households spectrum)
   ni: "#5EEAD4",           // Teal 300 (lighter teal)
   studentLoan: "#F59E0B",  // Amber 500 (lighter orange)
+  postgradLoan: "#DC2626", // Red 600 (distinct from undergrad)
   withLoan: "#319795",     // teal/500
   withoutLoan: "#9CA3AF",  // gray/400
   text: "#101828",         // gray/900
@@ -441,6 +442,21 @@ export default function StudentLoanCalculator() {
       .attr("fill-opacity", 0.7)
       .attr("d", areaSL);
 
+    // Layer 4: Postgraduate Loan (on top of IT + NI + SL)
+    if (calculatedInputs.hasPostgrad) {
+      const areaPG = d3.area()
+        .x((d) => x(d.income))
+        .y0((d) => y(d.incomeTax + d.ni + d.studentLoan))
+        .y1((d) => y(d.incomeTax + d.ni + d.studentLoan + d.postgrad))
+        .curve(d3.curveStepAfter);
+
+      g.append("path")
+        .datum(marginalRateData)
+        .attr("fill", COLORS.postgradLoan)
+        .attr("fill-opacity", 0.7)
+        .attr("d", areaPG);
+    }
+
     // Line for "with loan" (solid)
     const lineWithLoan = d3.line()
       .x((d) => x(d.income))
@@ -506,18 +522,20 @@ export default function StudentLoanCalculator() {
         const income = x.invert(mx);
         const i = bisect(marginalRateData, income, 1);
         const d = marginalRateData[Math.min(i, marginalRateData.length - 1)];
+        const postgradRow = calculatedInputs.hasPostgrad ? `<div class="tooltip-row"><span style="color:${COLORS.postgradLoan}">● Postgrad loan</span><span style="font-weight:600">${d.postgrad.toFixed(0)}%</span></div>` : '';
         tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
           .html(`<div class="tooltip-title">£${d3.format(",.0f")(d.income)}</div>
             <div class="tooltip-section">
               <div class="tooltip-row"><span style="color:${COLORS.incomeTax}">● Income tax</span><span style="font-weight:600">${d.incomeTax.toFixed(0)}%</span></div>
               <div class="tooltip-row"><span style="color:${COLORS.ni}">● National Insurance</span><span style="font-weight:600">${d.ni.toFixed(0)}%</span></div>
               <div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Student loan</span><span style="font-weight:600">${d.studentLoan.toFixed(0)}%</span></div>
+              ${postgradRow}
             </div>
             <div class="tooltip-row tooltip-total"><span>Total (with loan)</span><span style="color:${COLORS.withLoan};font-weight:700">${d.withLoan.toFixed(0)}%</span></div>
             <div class="tooltip-row"><span>Without loan</span><span style="color:${COLORS.withoutLoan};font-weight:600">${d.withoutLoan.toFixed(0)}%</span></div>`);
       })
       .on("mouseout", () => tooltip.style("opacity", 0));
-  }, [marginalRateData, calculatedInputs.salary, hasLoan, marginalWithLoan, marginalWithoutLoan, hasCalculated]);
+  }, [marginalRateData, calculatedInputs.salary, hasLoan, marginalWithLoan, marginalWithoutLoan, hasCalculated, calculatedInputs.hasPostgrad]);
 
   // Chart 2: Age-based comparison (1-year steps)
   useEffect(() => {
@@ -870,6 +888,9 @@ export default function StudentLoanCalculator() {
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
+                  {calculatedInputs.hasPostgrad && (
+                    <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>Postgrad loan</span></div>
+                  )}
                   <div className="legend-item"><div className="legend-color" style={{ background: "#344054", height: "2px", borderRadius: 0 }}></div><span>With loan</span></div>
                   <div className="legend-item"><div className="legend-color" style={{ background: "#344054", height: "2px", borderRadius: 0, borderTop: "2px dashed #344054", backgroundColor: "transparent" }}></div><span>Without loan</span></div>
                 </div>
