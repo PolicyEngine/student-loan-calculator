@@ -483,7 +483,10 @@ export default function StudentLoanCalculator() {
         .text("Plan 2 cutoff");
     }
 
-    // Bars
+    // Tooltip
+    const tooltip = d3.select(tooltipRef.current);
+
+    // Bars with hover
     ageData.forEach((d) => {
       g.append("rect")
         .attr("x", x(d.age))
@@ -491,7 +494,19 @@ export default function StudentLoanCalculator() {
         .attr("width", x.bandwidth())
         .attr("height", y(0) - y(d.totalRate))
         .attr("fill", d.hasLoan ? COLORS.withLoan : COLORS.withoutLoan)
-        .attr("rx", 1);
+        .attr("rx", 1)
+        .style("cursor", "pointer")
+        .on("mouseover", function (event) {
+          d3.select(this).attr("opacity", 0.8);
+          tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+            .html(`<div class="tooltip-title">Age ${d.age}</div>
+              <div class="tooltip-row"><span>Marginal rate</span><span style="font-weight:600">${d.totalRate.toFixed(0)}%</span></div>
+              <div class="tooltip-row"><span>Student loan</span><span style="font-weight:600">${d.hasLoan ? "Yes (Plan 2)" : "No"}</span></div>`);
+        })
+        .on("mouseout", function () {
+          d3.select(this).attr("opacity", 1);
+          tooltip.style("opacity", 0);
+        });
     });
 
     // X-axis with selective labels
