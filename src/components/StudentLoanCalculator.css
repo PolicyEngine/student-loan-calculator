@@ -485,6 +485,13 @@
   border-radius: 12px;
   padding: 20px;
   text-align: center;
+  cursor: help;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.student-loan-calculator .summary-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .student-loan-calculator .summary-item.highlighted {

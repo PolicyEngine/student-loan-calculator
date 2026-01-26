@@ -682,19 +682,19 @@ export default function StudentLoanCalculator() {
             <>
               {/* Summary cards */}
               <div className="lifecycle-summary">
-                <div className="summary-item highlighted">
+                <div className="summary-item highlighted" title="The percentage of each additional pound you earn that goes to tax, NI, and student loan repayments combined.">
                   <div className="summary-label">Your marginal rate</div>
                   <div className="summary-value">
                     {(hasLoan ? marginalWithLoan.totalRate * 100 : marginalWithoutLoan.totalRate * 100).toFixed(0)}%
                   </div>
                 </div>
-                <div className="summary-item">
+                <div className="summary-item" title={hasLoan ? `9% of income above £${d3.format(",.0f")(params.slPlan2Threshold)} goes to Plan 2 student loan repayments each year.` : "You don't have a Plan 2 student loan."}>
                   <div className="summary-label">{hasLoan ? "Annual student loan" : "No student loan"}</div>
                   <div className={`summary-value ${hasLoan ? "negative" : ""}`}>
                     {hasLoan ? `-£${d3.format(",.0f")(withLoan.studentLoan)}` : "£0"}
                   </div>
                 </div>
-                <div className="summary-item">
+                <div className="summary-item" title={hasLoan ? "Workers under 32 with Plan 2 loans face higher marginal rates than older workers on the same salary due to the 9% student loan repayment." : "Without a student loan, your marginal rate matches older workers."}>
                   <div className="summary-label">Rate vs older worker</div>
                   <div className={`summary-value ${hasLoan ? "negative" : ""}`}>
                     {hasLoan ? `+${summaryStats.marginalDiff.toFixed(0)}pp` : "Same"}
