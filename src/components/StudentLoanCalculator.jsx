@@ -180,6 +180,26 @@ function generateTakeHomeData(params, plan = "plan2", hasPostgrad = false) {
   return data;
 }
 
+// Generate age-based comparison data
+// Assumes workers under a cutoff age have student loans, those above don't
+function generateAgeData(salary, params, plan = "plan2", hasPostgrad = false, loanCutoffAge = 40) {
+  const data = [];
+  for (let age = 22; age <= 60; age++) {
+    const hasLoan = age < loanCutoffAge;
+    const rate = calculateMarginalRate(salary, params, hasLoan ? plan : "none", hasLoan ? hasPostgrad : false);
+    data.push({
+      age,
+      hasLoan,
+      totalRate: rate.totalRate * 100,
+      incomeTax: rate.incomeTaxRate * 100,
+      ni: rate.niRate * 100,
+      studentLoan: rate.studentLoanRate * 100,
+      postgrad: (rate.postgradRate || 0) * 100,
+    });
+  }
+  return data;
+}
+
 // Parse CSV row into params object
 function parseParamsRow(row) {
   return {
@@ -231,9 +251,66 @@ export default function StudentLoanCalculator() {
   const [selectedPlan, setSelectedPlan] = useState("plan2");
   const [showPostgrad, setShowPostgrad] = useState(false);
   const [exampleSalary, setExampleSalary] = useState(50000);
+  const [age, setAge] = useState(28);
+
+  // Loan cutoff age varies by plan (graduation age ~22 + write-off period)
+  const PLAN_WRITEOFF_AGES = {
+    plan1: 47,  // 25 years after first repayment
+    plan2: 52,  // 30 years after first repayment
+    plan4: 52,  // 30 years after first repayment
+    plan5: 62,  // 40 years after first repayment
+    none: 60,
+  };
+  const loanCutoffAge = PLAN_WRITEOFF_AGES[selectedPlan] || 52;
   const chartRef = useRef(null);
   const takeHomeChartRef = useRef(null);
+  const ageChartRef = useRef(null);
   const tooltipRef = useRef(null);
+
+  // Scroll spy state and refs
+  const [activeSection, setActiveSection] = useState("overview");
+  const sectionRefs = {
+    overview: useRef(null),
+    breakdown: useRef(null),
+    marginalRates: useRef(null),
+    takeHome: useRef(null),
+    byAge: useRef(null),
+  };
+
+  const sections = [
+    { id: "overview", label: "Overview" },
+    { id: "breakdown", label: "Breakdown" },
+    { id: "marginalRates", label: "Marginal rates" },
+    { id: "takeHome", label: "Take-home" },
+    { id: "byAge", label: "By age" },
+  ];
+
+  // Scroll spy effect
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -60% 0px",
+      threshold: 0,
+    };
+
+    const observerCallback = (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+    Object.values(sectionRefs).forEach((ref) => {
+      if (ref.current) {
+        observer.observe(ref.current);
+      }
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Load parameters from CSV
   useEffect(() => {
@@ -271,6 +348,7 @@ export default function StudentLoanCalculator() {
 
   const marginalRateData = useMemo(() => generateMarginalRateData(params, selectedPlan, showPostgrad), [params, selectedPlan, showPostgrad]);
   const takeHomeData = useMemo(() => generateTakeHomeData(params, selectedPlan, showPostgrad), [params, selectedPlan, showPostgrad]);
+  const ageData = useMemo(() => generateAgeData(exampleSalary, params, selectedPlan, showPostgrad, loanCutoffAge), [exampleSalary, params, selectedPlan, showPostgrad, loanCutoffAge]);
 
   // Example calculations
   const hasLoan = selectedPlan !== "none";
@@ -366,7 +444,7 @@ export default function StudentLoanCalculator() {
       .datum(marginalRateData)
       .attr("fill", "none")
       .attr("stroke", "#344054")
-      .attr("stroke-width", 2.5)
+      .attr("stroke-width", 3.5)
       .attr("d", lineWithLoan);
 
     const lineWithoutLoan = d3.line()
@@ -378,26 +456,9 @@ export default function StudentLoanCalculator() {
       .datum(marginalRateData)
       .attr("fill", "none")
       .attr("stroke", "#344054")
-      .attr("stroke-width", 2.5)
+      .attr("stroke-width", 3.5)
       .attr("stroke-dasharray", "6,3")
       .attr("d", lineWithoutLoan);
-
-    // Key income markers
-    const keyIncomes = [
-      { income: planThreshold, label: "Repayment threshold", color: COLORS.studentLoan },
-      { income: exampleSalary, label: `£${d3.format(",.0f")(exampleSalary)}`, color: COLORS.primary },
-    ];
-
-    keyIncomes.forEach(({ income, label, color }) => {
-      const rate = calculateMarginalRate(income, params, true, showPostgrad).totalRate * 100;
-      g.append("line")
-        .attr("x1", x(income)).attr("x2", x(income))
-        .attr("y1", 0).attr("y2", height)
-        .attr("stroke", color).attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
-      g.append("circle")
-        .attr("cx", x(income)).attr("cy", y(rate)).attr("r", 6)
-        .attr("fill", color).attr("stroke", "#fff").attr("stroke-width", 2);
-    });
 
     // Axes
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`)
@@ -465,8 +526,8 @@ export default function StudentLoanCalculator() {
         .attr("fill", COLORS.studentLoan).attr("fill-opacity", 0.15).attr("d", gapArea);
     }
 
-    g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withoutLoan).attr("stroke-width", 2.5).attr("d", lineWithoutLoan);
-    g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withLoan).attr("stroke-width", 2.5).attr("d", lineWithLoan);
+    g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withoutLoan).attr("stroke-width", 3.5).attr("d", lineWithoutLoan);
+    g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withLoan).attr("stroke-width", 3.5).attr("d", lineWithLoan);
 
     // Highlight selected salary
     if (exampleSalary > 0 && exampleSalary <= 150000) {
@@ -522,6 +583,82 @@ export default function StudentLoanCalculator() {
       .on("mouseout", () => tooltip.style("opacity", 0));
   }, [takeHomeData, params, paramsLoaded, showPostgrad, exampleSalary, selectedPlan, hasLoan, planThreshold]);
 
+  // Chart 3: Age-based comparison
+  useEffect(() => {
+    if (!ageChartRef.current || !paramsLoaded) return;
+
+    const container = ageChartRef.current;
+    d3.select(container).selectAll("*").remove();
+
+    const margin = { top: 20, right: 30, bottom: 50, left: 70 };
+    const width = container.clientWidth - margin.left - margin.right;
+    const height = 350 - margin.top - margin.bottom;
+
+    const svg = d3.select(container).append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleBand().domain(ageData.map((d) => d.age)).range([0, width]).padding(0.15);
+    const y = d3.scaleLinear().domain([0, 80]).range([height, 0]);
+
+    g.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(8));
+
+    // Reference line at loan cutoff age
+    const cutoffX = x(loanCutoffAge);
+    if (cutoffX !== undefined) {
+      g.append("line")
+        .attr("x1", cutoffX).attr("x2", cutoffX)
+        .attr("y1", 0).attr("y2", height)
+        .attr("stroke", COLORS.studentLoan).attr("stroke-width", 2).attr("stroke-dasharray", "6,4");
+      g.append("text")
+        .attr("x", cutoffX + 8).attr("y", 15)
+        .attr("font-size", "11px").attr("fill", COLORS.studentLoan).attr("font-weight", "600")
+        .text(`${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label || "Plan"} cutoff`);
+    }
+
+    // Tooltip
+    const tooltip = d3.select(tooltipRef.current);
+
+    // Bars
+    ageData.forEach((d) => {
+      const isSelected = d.age === age;
+      g.append("rect")
+        .attr("x", x(d.age))
+        .attr("y", y(d.totalRate))
+        .attr("width", x.bandwidth())
+        .attr("height", y(0) - y(d.totalRate))
+        .attr("fill", d.hasLoan ? COLORS.withLoan : COLORS.withoutLoan)
+        .attr("stroke", isSelected ? "#1a1a1a" : "none")
+        .attr("stroke-width", isSelected ? 2 : 0)
+        .attr("rx", 2)
+        .style("cursor", "pointer")
+        .on("mouseover", function (event) {
+          d3.select(this).attr("opacity", 0.8);
+          tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+            .html(`<div class="tooltip-title">Age ${d.age}</div>
+              <div class="tooltip-section">
+                <div class="tooltip-row"><span>Marginal rate</span><span style="font-weight:600">${d.totalRate.toFixed(0)}%</span></div>
+                <div class="tooltip-row"><span>Student loan</span><span style="font-weight:600">${d.hasLoan ? "Yes" : "No"}</span></div>
+              </div>`);
+        })
+        .on("mouseout", function () {
+          d3.select(this).attr("opacity", 1);
+          tooltip.style("opacity", 0);
+        });
+    });
+
+    // X-axis with selective labels
+    const xAxis = d3.axisBottom(x)
+      .tickValues(ageData.filter((d) => d.age % 5 === 0 || d.age === 22 || d.age === loanCutoffAge).map((d) => d.age))
+      .tickFormat((d) => d);
+    g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
+    g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Age");
+    g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
+  }, [ageData, paramsLoaded, age, loanCutoffAge, selectedPlan]);
+
   const annualRepayment = withLoan.studentLoan + withLoan.postgradLoan;
   const marginalDiff = (marginalWithLoan.totalRate - marginalWithoutLoan.totalRate) * 100;
 
@@ -529,18 +666,19 @@ export default function StudentLoanCalculator() {
     <div className="narrative-container">
       {/* Hero Section */}
       <header className="narrative-hero">
-        <h1>Student loan repayments as effective National Insurance</h1>
+        <h1>How student loans affect take-home pay</h1>
         <p className="narrative-lead">
           Student loan repayments add 9% to marginal deduction rates above the repayment threshold.
-          This analysis examines how student loan repayments interact with income tax and National Insurance.
+          Explore how this affects take-home pay at different income levels.
         </p>
       </header>
 
       {/* Controls Panel */}
       <section className="controls-panel">
+        <p className="controls-intro">Enter details below to calculate student loan repayments and marginal rates.</p>
         <div className="controls-grid">
           <div className="control-item">
-            <label>Annual salary</label>
+            <label>Gross income</label>
             <div className="salary-input-wrapper">
               <span className="currency-symbol">£</span>
               <input
@@ -554,7 +692,18 @@ export default function StudentLoanCalculator() {
             </div>
           </div>
           <div className="control-item">
-            <label>Student loan plan</label>
+            <label>Age</label>
+            <input
+              type="number"
+              value={age}
+              onChange={(e) => setAge(Math.min(65, Math.max(18, parseInt(e.target.value) || 22)))}
+              min="18"
+              max="65"
+              className="age-input"
+            />
+          </div>
+          <div className="control-item">
+            <label>Loan plan</label>
             <select value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value)}>
               {PLAN_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -575,37 +724,216 @@ export default function StudentLoanCalculator() {
             </select>
           </div>
           <div className="control-item">
+            <label className="label-with-info">
+              Postgrad
+              <span className="info-icon-wrapper">
+                <span className="info-icon">i</span>
+                <span className="info-tooltip">
+                  <strong>Postgraduate loan</strong>
+                  <br />
+                  A separate loan for Master's or PhD courses. Repayments are 6% of income above £{d3.format(",.0f")(params.slPostgradThreshold)}, collected alongside undergraduate loan repayments. Both are deducted from the same payslip if you have both loans.
+                </span>
+              </span>
+            </label>
             <label className="checkbox-label">
               <input
                 type="checkbox"
                 checked={showPostgrad}
                 onChange={(e) => setShowPostgrad(e.target.checked)}
               />
-              Postgraduate loan
+              <span>Add 6%</span>
             </label>
-            <span className="control-hint">6% above £{d3.format(",.0f")(params.slPostgradThreshold)}</span>
+            <span className="control-hint">Repays above £{d3.format(",.0f")(params.slPostgradThreshold)}</span>
           </div>
         </div>
       </section>
 
       {/* Section 1: Overview */}
-      <section className="narrative-section">
+      <section id="overview" ref={sectionRefs.overview} className="narrative-section">
         <h2>Overview</h2>
         <p>
-          Marginal deduction rates for UK workers typically comprise income tax (20%/40%/45%) and National Insurance
-          (8%/2%). For workers with student loans, an additional 9% repayment rate applies to earnings above the
-          plan threshold{hasLoan && ` (£${d3.format(",.0f")(planThreshold)} for ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label})`}.
+          Graduates with student loans pay 9% of their income above a threshold towards their loan. This is deducted from wages alongside income tax and National Insurance, increasing the marginal rate—the percentage taken from each additional pound earned. A basic rate taxpayer with a student loan faces a <strong>37%</strong> marginal rate (compared to 28% without a loan), rising to <strong>51%</strong> for higher rate taxpayers (compared to 42% without).
         </p>
         <p>
-          This creates combined marginal rates of <strong>37%</strong> for basic rate taxpayers with loans
-          (vs 28% without), and <strong>51%</strong> for higher rate taxpayers between £50,270 and £100,000
-          (vs 42% without). In the personal allowance taper zone (£100,000–£125,140), the effective marginal
-          rate reaches <strong>{showPostgrad ? "77" : "71"}%</strong>.
+          Use the controls above to enter gross income, select a loan plan, and see how repayments affect take-home pay. The calculator shows a breakdown of deductions, marginal rates across income levels, and how rates vary by age based on loan write-off dates.
         </p>
+        <details className="expandable-section">
+          <summary>Which plan?</summary>
+          <p>
+            Plan 1 applies to those who started before September 2012 in England or Wales, or studied in Scotland or Northern Ireland. Plan 2 is for those who started between September 2012 and August 2023 in England or Wales. Plan 4 is for Scottish students, and Plan 5 applies from August 2023 onwards in England.
+          </p>
+        </details>
+      </section>
+
+      {/* Combined Tax Position Section */}
+      <section id="breakdown" ref={sectionRefs.breakdown} className="narrative-section">
+        <h2>Tax position breakdown</h2>
+        <p>
+          Breakdown of deductions and marginal rates for a worker earning £{d3.format(",.0f")(exampleSalary)}, comparing those with a {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label || "student"} loan to those without.
+        </p>
+
+        <div className="tax-position-box">
+        {/* Marginal Rate Comparison */}
+        <div className="marginal-rate-row">
+          <div className="marginal-rate-item">
+            <div className="marginal-rate-value">{(marginalWithLoan.totalRate * 100).toFixed(0)}%</div>
+            <div className="marginal-rate-label">
+              Marginal rate (with loan)
+              <span className="info-icon-wrapper">
+                <span className="info-icon">i</span>
+                <span className="info-tooltip">
+                  The percentage taken from each additional pound earned, including income tax, National Insurance, and student loan repayments.
+                </span>
+              </span>
+            </div>
+          </div>
+          <div className="marginal-rate-item">
+            <div className="marginal-rate-value">{(marginalWithoutLoan.totalRate * 100).toFixed(0)}%</div>
+            <div className="marginal-rate-label">
+              Marginal rate (no loan)
+              <span className="info-icon-wrapper">
+                <span className="info-icon">i</span>
+                <span className="info-tooltip">
+                  The percentage taken from each additional pound earned, including only income tax and National Insurance.
+                </span>
+              </span>
+            </div>
+          </div>
+          <div className="marginal-rate-item highlight">
+            <div className="marginal-rate-value">{hasLoan ? `+${marginalDiff.toFixed(0)}pp` : "—"}</div>
+            <div className="marginal-rate-label">
+              Difference
+              <span className="info-icon-wrapper">
+                <span className="info-icon light">i</span>
+                <span className="info-tooltip">
+                  The additional percentage points (pp) deducted due to student loan repayments. This is the 9% repayment rate applied above the threshold.
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Deductions Breakdown */}
+        <div className="deductions-row">
+          <div className="deductions-column">
+            <h4>With student loan</h4>
+            <div className="deduction-item">
+              <span>Gross income</span>
+              <span>£{d3.format(",.0f")(exampleSalary)}</span>
+            </div>
+            <div className="deduction-item">
+              <span style={{ color: COLORS.incomeTax }}>Income tax</span>
+              <span>−£{d3.format(",.0f")(withLoan.incomeTax)}</span>
+            </div>
+            <div className="deduction-item">
+              <span style={{ color: COLORS.ni }}>National Insurance</span>
+              <span>−£{d3.format(",.0f")(withLoan.ni)}</span>
+            </div>
+            {hasLoan && (
+              <div className="deduction-item">
+                <span style={{ color: COLORS.studentLoan }}>Student loan</span>
+                <span>−£{d3.format(",.0f")(withLoan.studentLoan)}</span>
+              </div>
+            )}
+            {showPostgrad && (
+              <div className="deduction-item">
+                <span style={{ color: COLORS.postgradLoan }}>Postgrad loan</span>
+                <span>−£{d3.format(",.0f")(withLoan.postgradLoan)}</span>
+              </div>
+            )}
+            <div className="deduction-item total">
+              <span>Total deductions</span>
+              <span>−£{d3.format(",.0f")(withLoan.totalDeductions)}</span>
+            </div>
+            <div className="deduction-item net">
+              <span>Net income</span>
+              <span className="net-value">£{d3.format(",.0f")(withLoan.netIncome)}</span>
+            </div>
+          </div>
+
+          <div className="deductions-column">
+            <h4>Without student loan</h4>
+            <div className="deduction-item">
+              <span>Gross income</span>
+              <span>£{d3.format(",.0f")(exampleSalary)}</span>
+            </div>
+            <div className="deduction-item">
+              <span style={{ color: COLORS.incomeTax }}>Income tax</span>
+              <span>−£{d3.format(",.0f")(withoutLoan.incomeTax)}</span>
+            </div>
+            <div className="deduction-item">
+              <span style={{ color: COLORS.ni }}>National Insurance</span>
+              <span>−£{d3.format(",.0f")(withoutLoan.ni)}</span>
+            </div>
+            <div className="deduction-item total">
+              <span>Total deductions</span>
+              <span>−£{d3.format(",.0f")(withoutLoan.totalDeductions)}</span>
+            </div>
+            <div className="deduction-item net">
+              <span>Net income</span>
+              <span className="net-value">£{d3.format(",.0f")(withoutLoan.netIncome)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Stats */}
+        {hasLoan && (
+          <div className="summary-row">
+            <div className="summary-stat">
+              <span className="summary-stat-label">
+                Annual repayment
+                <span className="info-icon-wrapper">
+                  <span className="info-icon">i</span>
+                  <span className="info-tooltip">
+                    Total student loan repayment per year, calculated as 9% of income above the repayment threshold.
+                  </span>
+                </span>
+              </span>
+              <span className="summary-stat-value" style={{ color: COLORS.studentLoan }}>£{d3.format(",.0f")(annualRepayment)}</span>
+            </div>
+            <div className="summary-stat">
+              <span className="summary-stat-label">
+                Monthly
+                <span className="info-icon-wrapper">
+                  <span className="info-icon">i</span>
+                  <span className="info-tooltip">
+                    Monthly student loan repayment, deducted from wages by the employer through PAYE.
+                  </span>
+                </span>
+              </span>
+              <span className="summary-stat-value" style={{ color: COLORS.studentLoan }}>£{d3.format(",.0f")(annualRepayment / 12)}</span>
+            </div>
+            <div className="summary-stat">
+              <span className="summary-stat-label">
+                Effective rate (with)
+                <span className="info-icon-wrapper">
+                  <span className="info-icon">i</span>
+                  <span className="info-tooltip">
+                    Total deductions as a percentage of gross income, including income tax, NI, and student loan.
+                  </span>
+                </span>
+              </span>
+              <span className="summary-stat-value">{((withLoan.totalDeductions / exampleSalary) * 100).toFixed(1)}%</span>
+            </div>
+            <div className="summary-stat">
+              <span className="summary-stat-label">
+                Effective rate (without)
+                <span className="info-icon-wrapper">
+                  <span className="info-icon">i</span>
+                  <span className="info-tooltip">
+                    Total deductions as a percentage of gross income, including only income tax and NI.
+                  </span>
+                </span>
+              </span>
+              <span className="summary-stat-value">{((withoutLoan.totalDeductions / exampleSalary) * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+        )}
+        </div>
       </section>
 
       {/* Chart 1: Marginal Rates */}
-      <section className="narrative-section">
+      <section id="marginalRates" ref={sectionRefs.marginalRates} className="narrative-section">
         <h2>Marginal deduction rates by income</h2>
         <p>
           The chart shows the composition of marginal deduction rates across the income distribution:
@@ -628,29 +956,11 @@ export default function StudentLoanCalculator() {
         </p>
       </section>
 
-      {/* Callout: Key Numbers */}
-      <section className="narrative-callout">
-        <div className="callout-grid">
-          <div className="callout-item">
-            <div className="callout-number">{(marginalWithLoan.totalRate * 100).toFixed(0)}%</div>
-            <div className="callout-label">Marginal rate at £{d3.format(",.0f")(exampleSalary)}{hasLoan && " (with loan)"}</div>
-          </div>
-          <div className="callout-item">
-            <div className="callout-number">{(marginalWithoutLoan.totalRate * 100).toFixed(0)}%</div>
-            <div className="callout-label">Marginal rate at £{d3.format(",.0f")(exampleSalary)} (no loan)</div>
-          </div>
-          <div className="callout-item highlight">
-            <div className="callout-number">{hasLoan ? `+${marginalDiff.toFixed(0)}pp` : "—"}</div>
-            <div className="callout-label">Difference</div>
-          </div>
-        </div>
-      </section>
-
       {/* Section 2: Take-Home Impact */}
-      <section className="narrative-section">
+      <section id="takeHome" ref={sectionRefs.takeHome} className="narrative-section">
         <h2>Impact on take-home pay</h2>
         <p>
-          At £{d3.format(",.0f")(exampleSalary)} gross salary, {hasLoan ? `a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan receives` : "a worker receives"} <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> net
+          At £{d3.format(",.0f")(exampleSalary)} gross income, {hasLoan ? `a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan receives` : "a worker receives"} <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> net
           {hasLoan && <>, compared to <strong>£{d3.format(",.0f")(withoutLoan.netIncome)}</strong> for a worker without a loan—a difference of <strong>£{d3.format(",.0f")(annualRepayment)}</strong> per year</>}.
         </p>
 
@@ -668,40 +978,47 @@ export default function StudentLoanCalculator() {
         </p>
       </section>
 
-      {/* Section 3: Policy Context */}
-      <section className="narrative-section">
-        <h2>Policy context</h2>
+      {/* Section 3: Age-based comparison */}
+      <section id="byAge" ref={sectionRefs.byAge} className="narrative-section">
+        <h2>Marginal rate by age</h2>
         <p>
-          The Autumn Budget 2025 announced a freeze on the Plan 2 repayment threshold at £{d3.format(",.0f")(params.slPlan2Threshold)} for
-          three years from April 2027, rather than uprating by RPI. This results in graduates beginning
-          repayments at a lower real income level over time.
+          Workers with student loans face higher marginal rates than those without at the same salary level.
+          This chart assumes workers under {loanCutoffAge} have student loans, based on {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label}'s write-off period.
         </p>
+
+        <div className="narrative-chart-container">
+          <div ref={ageChartRef} className="narrative-chart"></div>
+          <div className="chart-legend">
+            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Has student loan</span></div>
+            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan ({loanCutoffAge}+)</span></div>
+          </div>
+        </div>
+
         <p>
-          Student loan repayments differ from income tax and National Insurance in that they do not fund
-          public services or contribute to state pension entitlement. However, in terms of their effect on
-          take-home pay, they function similarly to an additional payroll deduction.
-        </p>
-        <p>
-          Two workers at the same salary performing the same role will have different net incomes if one has
-          a Plan 2 loan. This represents a structural difference in effective tax burden by cohort.
+          Student loans are automatically written off after a set period: <strong>25 years</strong> for Plan 1,{" "}
+          <strong>30 years</strong> for Plans 2 and 4, and <strong>40 years</strong> for Plan 5.
+          The cutoff age shown ({loanCutoffAge}) is calculated from a typical graduation age of 22.
         </p>
       </section>
 
-      {/* Methodology */}
-      <footer className="narrative-footer">
-        <h3>Methodology</h3>
-        <p>
-          Analysis based on {selectedYear}/{selectedYear + 1 - 2000} tax year parameters.
-          Calculations assume employment income only.
-          {hasLoan && ` ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} repayments: 9% of earnings above £${d3.format(",.0f")(planThreshold)}.`}
-          {showPostgrad && ` Postgraduate loan: 6% above £${d3.format(",.0f")(params.slPostgradThreshold)}.`}
-        </p>
-        <p className="source-link">
-          Analysis by <a href="https://policyengine.org" target="_blank" rel="noopener noreferrer">PolicyEngine</a>
-        </p>
-      </footer>
-
       <div ref={tooltipRef} className="lifecycle-tooltip"></div>
+
+      {/* Scroll Spy Navigation */}
+      <nav className="scroll-spy">
+        {sections.map((section) => (
+          <button
+            key={section.id}
+            className={`scroll-spy-item ${activeSection === section.id ? "active" : ""}`}
+            onClick={() => {
+              document.getElementById(section.id)?.scrollIntoView({ behavior: "smooth" });
+            }}
+            aria-label={`Go to ${section.label}`}
+          >
+            <span className="scroll-spy-label">{section.label}</span>
+            <span className="scroll-spy-dot" />
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
