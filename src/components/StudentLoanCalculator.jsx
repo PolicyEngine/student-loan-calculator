@@ -269,10 +269,9 @@ function getPlanWriteoffYears(params, plan) {
 
 // Client-side calculation functions removed - all data comes from API
 
-// API URL - use localhost for development, production URL when deployed
+// API URL - uses environment variable for production, falls back to localhost for development
 const getApiUrl = () => {
-  // Change to production URL when deployed
-  return "http://localhost:5002";
+  return import.meta.env.VITE_API_URL || "http://localhost:5002";
 };
 
 // Format year as UK tax year (e.g., 2026 -> "2026-27")

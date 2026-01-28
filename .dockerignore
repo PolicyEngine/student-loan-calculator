@@ -1,0 +1,26 @@
+# Node.js frontend (built separately)
+node_modules/
+dist/
+.vercel/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Environment
+.env
+.env.local
+
+# Documentation
+README.md
+*.md
