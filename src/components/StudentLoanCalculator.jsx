@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import * as d3 from "d3";
 import "./StudentLoanCalculator.css";
 
@@ -222,6 +222,17 @@ function parseParamsRow(row) {
     slPlan5Threshold: parseFloat(row.sl_plan5_threshold),
     slPostgradThreshold: parseFloat(row.sl_postgrad_threshold),
     slPostgradRate: parseFloat(row.sl_postgrad_rate),
+    // Interest rates
+    slPlan1Interest: parseFloat(row.sl_plan1_interest) || 0.045,
+    slPlan2InterestMin: parseFloat(row.sl_plan2_interest_min) || 0.045,
+    slPlan2InterestMax: parseFloat(row.sl_plan2_interest_max) || 0.078,
+    slPlan4Interest: parseFloat(row.sl_plan4_interest) || 0.045,
+    slPlan5Interest: parseFloat(row.sl_plan5_interest) || 0.045,
+    // Write-off periods
+    slPlan1Writeoff: parseInt(row.sl_plan1_writeoff) || 25,
+    slPlan2Writeoff: parseInt(row.sl_plan2_writeoff) || 30,
+    slPlan4Writeoff: parseInt(row.sl_plan4_writeoff) || 30,
+    slPlan5Writeoff: parseInt(row.sl_plan5_writeoff) || 40,
   };
 }
 
@@ -244,6 +255,29 @@ function getPlanThreshold(params, plan) {
   return thresholds[plan] || params.slPlan2Threshold;
 }
 
+// Get plan write-off period from params
+function getPlanWriteoffYears(params, plan) {
+  const writeoffs = {
+    plan1: params.slPlan1Writeoff || 25,
+    plan2: params.slPlan2Writeoff || 30,
+    plan4: params.slPlan4Writeoff || 30,
+    plan5: params.slPlan5Writeoff || 40,
+    none: 0,
+  };
+  return writeoffs[plan] || 30;
+}
+
+// Client-side calculation functions removed - all data comes from API
+
+// API URL - use localhost for development, production URL when deployed
+const getApiUrl = () => {
+  // Change to production URL when deployed
+  return "http://localhost:5002";
+};
+
+// Format year as UK tax year (e.g., 2026 -> "2026-27")
+const formatTaxYear = (year) => `${year}-${String(year + 1).slice(-2)}`;
+
 export default function StudentLoanCalculator() {
   const [allParams, setAllParams] = useState({});
   const [paramsLoaded, setParamsLoaded] = useState(false);
@@ -252,6 +286,15 @@ export default function StudentLoanCalculator() {
   const [showPostgrad, setShowPostgrad] = useState(false);
   const [exampleSalary, setExampleSalary] = useState(50000);
   const [age, setAge] = useState(28);
+  const [loanAmount, setLoanAmount] = useState(40000);
+  const [salaryGrowthRate, setSalaryGrowthRate] = useState(0.03);
+  const [customInterestRate, setCustomInterestRate] = useState(0.04); // default 4%
+
+  // API data state
+  const [apiData, setApiData] = useState(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [policyChartView, setPolicyChartView] = useState("annual"); // "annual" or "cumulative"
 
   // Loan cutoff age varies by plan (graduation age ~22 + write-off period)
   const PLAN_WRITEOFF_AGES = {
@@ -265,6 +308,8 @@ export default function StudentLoanCalculator() {
   const chartRef = useRef(null);
   const takeHomeChartRef = useRef(null);
   const ageChartRef = useRef(null);
+  const lifetimeChartRef = useRef(null);
+  const policyChartRef = useRef(null);
   const tooltipRef = useRef(null);
 
   // Scroll spy state and refs
@@ -275,6 +320,8 @@ export default function StudentLoanCalculator() {
     marginalRates: useRef(null),
     takeHome: useRef(null),
     byAge: useRef(null),
+    lifetime: useRef(null),
+    policy: useRef(null),
   };
 
   const sections = [
@@ -283,6 +330,8 @@ export default function StudentLoanCalculator() {
     { id: "marginalRates", label: "Marginal rates" },
     { id: "takeHome", label: "Take-home" },
     { id: "byAge", label: "By age" },
+    { id: "lifetime", label: "Lifetime" },
+    { id: "policy", label: "Policy" },
   ];
 
   // Scroll spy effect
@@ -341,6 +390,58 @@ export default function StudentLoanCalculator() {
       });
   }, []);
 
+  // Fetch data from API
+  const fetchApiData = useCallback(async () => {
+    if (selectedPlan === "none") {
+      setApiData(null);
+      return;
+    }
+
+    setApiLoading(true);
+    setApiError(null);
+
+    try {
+      const requestBody = {
+        starting_salary: exampleSalary,
+        loan_amount: loanAmount,
+        plan: selectedPlan,
+        salary_growth_rate: salaryGrowthRate,
+        year: selectedYear,
+        has_postgrad: showPostgrad,
+      };
+      // Add custom interest rate if set
+      if (customInterestRate !== null) {
+        requestBody.interest_rate = customInterestRate;
+      }
+
+      const response = await fetch(`${getApiUrl()}/calculate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setApiData(result);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setApiError(err.message);
+    } finally {
+      setApiLoading(false);
+    }
+  }, [exampleSalary, loanAmount, selectedPlan, salaryGrowthRate, selectedYear, showPostgrad, customInterestRate]);
+
+  // Debounced fetch on input change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchApiData();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [fetchApiData]);
+
   const params = useMemo(() => {
     if (!paramsLoaded) return DEFAULT_PARAMS;
     return allParams[selectedYear] || DEFAULT_PARAMS;
@@ -349,6 +450,43 @@ export default function StudentLoanCalculator() {
   const marginalRateData = useMemo(() => generateMarginalRateData(params, selectedPlan, showPostgrad), [params, selectedPlan, showPostgrad]);
   const takeHomeData = useMemo(() => generateTakeHomeData(params, selectedPlan, showPostgrad), [params, selectedPlan, showPostgrad]);
   const ageData = useMemo(() => generateAgeData(exampleSalary, params, selectedPlan, showPostgrad, loanCutoffAge), [exampleSalary, params, selectedPlan, showPostgrad, loanCutoffAge]);
+
+  // Data from API - transform to chart format (no fallbacks)
+  const lifetimeData = useMemo(() => {
+    if (selectedPlan === "none" || !apiData?.lifetime_data) return [];
+    return apiData.lifetime_data.map(d => ({
+      year: d.year,
+      salary: d.salary,
+      annualRepayment: d.annual_repayment,
+      totalRepaid: d.total_repaid,
+      remainingBalance: d.balance_end,
+      interestCharge: d.interest_charge,
+      writeOff: d.written_off || 0,
+    }));
+  }, [apiData, selectedPlan]);
+
+  // Policy data from API
+  const policyData = useMemo(() => {
+    if (selectedPlan === "none" || !apiData?.policy_data) return [];
+    return apiData.policy_data.map(d => ({
+      year: d.year,
+      calendarYear: d.calendar_year,
+      // Annual values (for each year)
+      annualRepaidFrozen: d.annual_repaid_frozen,
+      annualRepaidIndexed: d.annual_repaid_indexed,
+      annualImpact: d.annual_impact,
+      // Cumulative values (total over lifetime)
+      totalRepaidFrozen: d.total_repaid_frozen,
+      totalRepaidIndexed: d.total_repaid_indexed,
+      cumulativeImpact: d.cumulative_impact,
+      // Thresholds
+      thresholdFrozen: d.threshold_frozen,
+      thresholdIndexed: d.threshold_indexed,
+      // Balance tracking for filtering
+      balanceFrozen: d.balance_frozen || 0,
+      balanceIndexed: d.balance_indexed || 0,
+    }));
+  }, [apiData, selectedPlan]);
 
   // Example calculations
   const hasLoan = selectedPlan !== "none";
@@ -460,6 +598,36 @@ export default function StudentLoanCalculator() {
       .attr("stroke-dasharray", "6,3")
       .attr("d", lineWithoutLoan);
 
+    // Highlight selected salary with vertical line
+    if (exampleSalary > 0 && exampleSalary <= 150000) {
+      const rateWithLoan = marginalWithLoan.totalRate * 100;
+      const rateWithoutLoan = marginalWithoutLoan.totalRate * 100;
+
+      g.append("line")
+        .attr("x1", x(exampleSalary)).attr("x2", x(exampleSalary))
+        .attr("y1", 0).attr("y2", height)
+        .attr("stroke", COLORS.primary).attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
+
+      // Point on with-loan line
+      g.append("circle")
+        .attr("cx", x(exampleSalary)).attr("cy", y(rateWithLoan)).attr("r", 6)
+        .attr("fill", "#344054").attr("stroke", "#fff").attr("stroke-width", 2);
+
+      // Point on without-loan line
+      g.append("circle")
+        .attr("cx", x(exampleSalary)).attr("cy", y(rateWithoutLoan)).attr("r", 6)
+        .attr("fill", "#344054").attr("stroke", "#fff").attr("stroke-width", 2);
+
+      // Label showing the difference
+      const diff = rateWithLoan - rateWithoutLoan;
+      if (diff > 0) {
+        g.append("text")
+          .attr("x", x(exampleSalary) + 8).attr("y", 15)
+          .attr("font-size", "12px").attr("font-weight", "600").attr("fill", COLORS.studentLoan)
+          .text(`+${diff.toFixed(0)}pp`);
+      }
+    }
+
     // Axes
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(x).tickFormat((d) => `£${d / 1000}k`).ticks(6));
@@ -492,7 +660,7 @@ export default function StudentLoanCalculator() {
             <div class="tooltip-row"><span>Without loan</span><span style="color:${COLORS.withoutLoan};font-weight:600">${d.withoutLoan.toFixed(0)}%</span></div>`);
       })
       .on("mouseout", () => tooltip.style("opacity", 0));
-  }, [marginalRateData, params, paramsLoaded, showPostgrad, planThreshold, exampleSalary]);
+  }, [marginalRateData, params, paramsLoaded, showPostgrad, planThreshold, exampleSalary, marginalWithLoan, marginalWithoutLoan]);
 
   // Chart 2: Take-Home Pay
   useEffect(() => {
@@ -549,7 +717,7 @@ export default function StudentLoanCalculator() {
       const gap = netWithoutLoan - netWithLoan;
       if (gap > 0) {
         g.append("text")
-          .attr("x", x(exampleSalary) + 8).attr("y", (y(netWithLoan) + y(netWithoutLoan)) / 2 + 4)
+          .attr("x", x(exampleSalary) + 8).attr("y", 15)
           .attr("font-size", "12px").attr("font-weight", "600").attr("fill", COLORS.studentLoan)
           .text(`-£${d3.format(",.0f")(gap)}/yr`);
       }
@@ -583,7 +751,7 @@ export default function StudentLoanCalculator() {
       .on("mouseout", () => tooltip.style("opacity", 0));
   }, [takeHomeData, params, paramsLoaded, showPostgrad, exampleSalary, selectedPlan, hasLoan, planThreshold]);
 
-  // Chart 3: Age-based comparison
+  // Chart 3: Age-based comparison (stacked bars like UK Autumn Budget)
   useEffect(() => {
     if (!ageChartRef.current || !paramsLoaded) return;
 
@@ -611,40 +779,111 @@ export default function StudentLoanCalculator() {
       g.append("line")
         .attr("x1", cutoffX).attr("x2", cutoffX)
         .attr("y1", 0).attr("y2", height)
-        .attr("stroke", COLORS.studentLoan).attr("stroke-width", 2).attr("stroke-dasharray", "6,4");
+        .attr("stroke", "#94a3b8").attr("stroke-width", 1.5).attr("stroke-dasharray", "6,4");
       g.append("text")
         .attr("x", cutoffX + 8).attr("y", 15)
-        .attr("font-size", "11px").attr("fill", COLORS.studentLoan).attr("font-weight", "600")
-        .text(`${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label || "Plan"} cutoff`);
+        .attr("font-size", "11px").attr("fill", "#64748b").attr("font-weight", "500")
+        .text(`Loan written off`);
     }
 
     // Tooltip
     const tooltip = d3.select(tooltipRef.current);
 
-    // Bars
+    // Stacked bars - draw each component
     ageData.forEach((d) => {
       const isSelected = d.age === age;
-      g.append("rect")
-        .attr("x", x(d.age))
-        .attr("y", y(d.totalRate))
-        .attr("width", x.bandwidth())
-        .attr("height", y(0) - y(d.totalRate))
-        .attr("fill", d.hasLoan ? COLORS.withLoan : COLORS.withoutLoan)
-        .attr("stroke", isSelected ? "#1a1a1a" : "none")
-        .attr("stroke-width", isSelected ? 2 : 0)
-        .attr("rx", 2)
+      const barX = x(d.age);
+      const barWidth = x.bandwidth();
+      let currentY = height; // Start from bottom
+
+      // Create invisible overlay for hover interaction
+      const barGroup = g.append("g").attr("class", "bar-group");
+
+      // Income tax bar (bottom)
+      if (d.incomeTax > 0) {
+        const barHeight = y(0) - y(d.incomeTax);
+        currentY -= barHeight;
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", currentY)
+          .attr("width", barWidth)
+          .attr("height", barHeight)
+          .attr("fill", COLORS.incomeTax);
+      }
+
+      // National Insurance bar (middle)
+      if (d.ni > 0) {
+        const barHeight = y(0) - y(d.ni);
+        currentY -= barHeight;
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", currentY)
+          .attr("width", barWidth)
+          .attr("height", barHeight)
+          .attr("fill", COLORS.ni);
+      }
+
+      // Student loan bar (if has loan)
+      if (d.studentLoan > 0) {
+        const barHeight = y(0) - y(d.studentLoan);
+        currentY -= barHeight;
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", currentY)
+          .attr("width", barWidth)
+          .attr("height", barHeight)
+          .attr("fill", COLORS.studentLoan);
+      }
+
+      // Postgrad loan bar (if applicable)
+      if (d.postgrad > 0) {
+        const barHeight = y(0) - y(d.postgrad);
+        currentY -= barHeight;
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", currentY)
+          .attr("width", barWidth)
+          .attr("height", barHeight)
+          .attr("fill", COLORS.postgradLoan);
+      }
+
+      // Selection highlight border
+      if (isSelected) {
+        barGroup.append("rect")
+          .attr("x", barX - 1)
+          .attr("y", y(d.totalRate) - 1)
+          .attr("width", barWidth + 2)
+          .attr("height", y(0) - y(d.totalRate) + 2)
+          .attr("fill", "none")
+          .attr("stroke", "#1a1a1a")
+          .attr("stroke-width", 2)
+          .attr("rx", 2);
+      }
+
+      // Invisible overlay for mouse interaction
+      barGroup.append("rect")
+        .attr("x", barX)
+        .attr("y", 0)
+        .attr("width", barWidth)
+        .attr("height", height)
+        .attr("fill", "transparent")
         .style("cursor", "pointer")
         .on("mouseover", function (event) {
-          d3.select(this).attr("opacity", 0.8);
+          barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
+          const postgradRow = d.postgrad > 0 ? `<div class="tooltip-row"><span style="color:${COLORS.postgradLoan}">● Postgrad loan</span><span style="font-weight:600">${d.postgrad.toFixed(0)}%</span></div>` : '';
+          const slRow = d.studentLoan > 0 ? `<div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Student loan</span><span style="font-weight:600">${d.studentLoan.toFixed(0)}%</span></div>` : '';
           tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
             .html(`<div class="tooltip-title">Age ${d.age}</div>
               <div class="tooltip-section">
-                <div class="tooltip-row"><span>Marginal rate</span><span style="font-weight:600">${d.totalRate.toFixed(0)}%</span></div>
-                <div class="tooltip-row"><span>Student loan</span><span style="font-weight:600">${d.hasLoan ? "Yes" : "No"}</span></div>
-              </div>`);
+                <div class="tooltip-row"><span style="color:${COLORS.incomeTax}">● Income tax</span><span style="font-weight:600">${d.incomeTax.toFixed(0)}%</span></div>
+                <div class="tooltip-row"><span style="color:${COLORS.ni}">● National Insurance</span><span style="font-weight:600">${d.ni.toFixed(0)}%</span></div>
+                ${slRow}
+                ${postgradRow}
+              </div>
+              <div class="tooltip-row tooltip-total"><span>Total marginal rate</span><span style="font-weight:700">${d.totalRate.toFixed(0)}%</span></div>`);
         })
         .on("mouseout", function () {
-          d3.select(this).attr("opacity", 1);
+          barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
           tooltip.style("opacity", 0);
         });
     });
@@ -655,9 +894,223 @@ export default function StudentLoanCalculator() {
       .tickFormat((d) => d);
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
-      .attr("font-size", "12px").attr("fill", "#64748B").text("Age");
+      .attr("font-size", "12px").attr("fill", "#64748B").text(`Worker's age in ${formatTaxYear(selectedYear)}`);
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
-  }, [ageData, paramsLoaded, age, loanCutoffAge, selectedPlan]);
+  }, [ageData, paramsLoaded, age, loanCutoffAge, selectedPlan, selectedYear]);
+
+  // Chart 4: Lifetime Repayment Analysis (stacked bars)
+  useEffect(() => {
+    if (!lifetimeChartRef.current || !paramsLoaded || !lifetimeData.length) return;
+
+    const container = lifetimeChartRef.current;
+    // Clear any existing content before rendering
+    container.innerHTML = "";
+    d3.select(container).selectAll("*").remove();
+
+    const margin = { top: 20, right: 30, bottom: 50, left: 80 };
+    const width = container.clientWidth - margin.left - margin.right;
+    const height = 350 - margin.top - margin.bottom;
+
+    const svg = d3.select(container).append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Filter out year 0 for bar chart, add age (graduation age + years)
+    const graduationAge = age; // Use selected age as graduation age
+    const barData = lifetimeData.filter(d => d.year > 0).map(d => ({
+      ...d,
+      age: graduationAge + d.year
+    }));
+    const maxAge = Math.max(...barData.map(d => d.age));
+    const maxValue = Math.max(...barData.map(d => d.totalRepaid + d.remainingBalance));
+
+    const x = d3.scaleBand().domain(barData.map(d => d.age)).range([0, width]).padding(0.15);
+    const y = d3.scaleLinear().domain([0, maxValue * 1.1]).range([height, 0]);
+
+    g.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(6));
+
+    const tooltip = d3.select(tooltipRef.current);
+
+    // Stacked bars for each age
+    barData.forEach((d) => {
+      const barX = x(d.age);
+      const barWidth = x.bandwidth();
+      const barGroup = g.append("g").attr("class", "bar-group");
+
+      // Total repaid bar (bottom - positive, shown as teal)
+      const repaidHeight = y(0) - y(d.totalRepaid);
+      barGroup.append("rect")
+        .attr("x", barX)
+        .attr("y", y(d.totalRepaid))
+        .attr("width", barWidth)
+        .attr("height", repaidHeight)
+        .attr("fill", COLORS.primary);
+
+      // Remaining balance bar (stacked on top - shown as amber)
+      const balanceHeight = y(0) - y(d.remainingBalance);
+      barGroup.append("rect")
+        .attr("x", barX)
+        .attr("y", y(d.totalRepaid) - balanceHeight)
+        .attr("width", barWidth)
+        .attr("height", balanceHeight)
+        .attr("fill", COLORS.studentLoan);
+
+      // Write-off indicator for final year
+      if (d.writeOff > 0) {
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", y(d.totalRepaid) - balanceHeight - 3)
+          .attr("width", barWidth)
+          .attr("height", 3)
+          .attr("fill", COLORS.postgradLoan);
+      }
+
+      // Invisible overlay for mouse interaction
+      barGroup.append("rect")
+        .attr("x", barX)
+        .attr("y", 0)
+        .attr("width", barWidth)
+        .attr("height", height)
+        .attr("fill", "transparent")
+        .style("cursor", "pointer")
+        .on("mouseover", function(event) {
+          barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
+          const writeOffRow = d.writeOff > 0 ? `<div class="tooltip-row" style="color:${COLORS.postgradLoan}"><span>● Written off</span><span style="font-weight:600">£${d3.format(",.0f")(d.writeOff)}</span></div>` : '';
+          tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+            .html(`<div class="tooltip-title">Age ${d.age} (Year ${d.year})</div>
+              <div class="tooltip-section">
+                <div class="tooltip-row"><span>Salary</span><span style="font-weight:600">£${d3.format(",.0f")(d.salary)}</span></div>
+                <div class="tooltip-row"><span>Annual repayment</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepayment)}</span></div>
+                <div class="tooltip-row"><span>Interest charged</span><span style="font-weight:600">£${d3.format(",.0f")(d.interestCharge)}</span></div>
+              </div>
+              <div class="tooltip-row"><span style="color:${COLORS.primary}">● Total repaid</span><span style="font-weight:600">£${d3.format(",.0f")(d.totalRepaid)}</span></div>
+              <div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Balance remaining</span><span style="font-weight:600">£${d3.format(",.0f")(d.remainingBalance)}</span></div>
+              ${writeOffRow}`);
+        })
+        .on("mouseout", function() {
+          barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
+          tooltip.style("opacity", 0);
+        });
+    });
+
+    // Axes
+    const xAxis = d3.axisBottom(x)
+      .tickValues(barData.filter(d => d.year % 5 === 0 || d.year === 1 || d.age === maxAge).map(d => d.age))
+      .tickFormat(d => `${d}`);
+    g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
+    g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Worker's age");
+    g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat(d => `£${d / 1000}k`).ticks(6));
+  }, [lifetimeData, paramsLoaded, age]);
+
+  // Removed: Chart 5 (Interest Rate Impact) and Combined Repayment chart
+
+  // Chart 6: Policy Impact - Annual or Cumulative extra repayment due to threshold freeze
+  useEffect(() => {
+    if (!policyChartRef.current || !paramsLoaded || !policyData.length) return;
+
+    const container = policyChartRef.current;
+    d3.select(container).selectAll("*").remove();
+
+    const margin = { top: 20, right: 30, bottom: 50, left: 70 };
+    const width = container.clientWidth - margin.left - margin.right;
+    const height = 350 - margin.top - margin.bottom;
+
+    const svg = d3.select(container).append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Filter out year 0, add age, and stop at the last year where there's still a balance remaining
+    // (i.e., exclude the final payoff year where balance goes to 0)
+    const graduationAge = age;
+
+    // Find the last year where balance_frozen > 0 (still has balance after repayment)
+    let lastYearWithBalance = 0;
+    for (const d of policyData) {
+      if (d.year > 0 && (d.balanceFrozen || 0) > 0) {
+        lastYearWithBalance = d.year;
+      }
+    }
+
+    const barData = policyData
+      .filter(d => d.year > 0 && d.year <= lastYearWithBalance)
+      .map(d => ({
+        ...d,
+        age: graduationAge + d.year
+      }));
+
+    if (barData.length === 0) return;
+
+    const maxAge = Math.max(...barData.map(d => d.age));
+    // Use annual or cumulative based on toggle
+    const isCumulative = policyChartView === "cumulative";
+    const getImpact = (d) => isCumulative ? (d.cumulativeImpact || 0) : (d.annualImpact || 0);
+    const maxImpact = Math.max(...barData.map(d => getImpact(d)), 100);
+
+    const x = d3.scaleBand().domain(barData.map(d => d.age)).range([0, width]).padding(0.15);
+    const y = d3.scaleLinear().domain([0, maxImpact * 1.1]).nice().range([height, 0]);
+
+    g.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(6));
+
+    const tooltip = d3.select(tooltipRef.current);
+
+    // Bars showing impact at each age
+    barData.forEach((d) => {
+      const barX = x(d.age);
+      const barWidth = x.bandwidth();
+      const barGroup = g.append("g").attr("class", "bar-group");
+      const impact = getImpact(d);
+
+      // Impact bar
+      const barHeight = y(0) - y(impact);
+      if (barHeight > 0) {
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", y(impact))
+          .attr("width", barWidth)
+          .attr("height", barHeight)
+          .attr("fill", COLORS.postgradLoan)
+          .attr("rx", 2);
+      }
+
+      // Invisible overlay for mouse interaction
+      barGroup.append("rect")
+        .attr("x", barX)
+        .attr("y", 0)
+        .attr("width", barWidth)
+        .attr("height", height)
+        .attr("fill", "transparent")
+        .style("cursor", "pointer")
+        .on("mouseover", function(event) {
+          barGroup.select("rect:first-child").attr("opacity", 0.8);
+          tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+            .html(`<div class="tooltip-title">Age ${d.age} (${d.calendarYear || 2026 + d.year})</div>
+              <div class="tooltip-section">
+                <div class="tooltip-row"><span>Repayment (frozen)</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepaidFrozen || 0)}</span></div>
+                <div class="tooltip-row"><span>Repayment (RPI-linked)</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepaidIndexed || 0)}</span></div>
+              </div>
+              <div class="tooltip-row tooltip-total"><span>Annual impact</span><span style="color:${COLORS.postgradLoan};font-weight:700">+£${d3.format(",.0f")(d.annualImpact || 0)}</span></div>
+              <div class="tooltip-row"><span>Cumulative impact</span><span style="font-weight:600">+£${d3.format(",.0f")(d.cumulativeImpact || 0)}</span></div>`);
+        })
+        .on("mouseout", function() {
+          barGroup.select("rect:first-child").attr("opacity", 1);
+          tooltip.style("opacity", 0);
+        });
+    });
+
+    // Axes
+    const xAxis = d3.axisBottom(x)
+      .tickValues(barData.filter(d => d.year % 5 === 0 || d.year === 1 || d.age === maxAge).map(d => d.age))
+      .tickFormat(d => `${d}`);
+    g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
+    g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Worker's age");
+    g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat(d => `£${d3.format(",.0f")(d)}`).ticks(6));
+  }, [policyData, paramsLoaded, age, policyChartView]);
 
   const annualRepayment = withLoan.studentLoan + withLoan.postgradLoan;
   const marginalDiff = (marginalWithLoan.totalRate - marginalWithoutLoan.totalRate) * 100;
@@ -666,16 +1119,15 @@ export default function StudentLoanCalculator() {
     <div className="narrative-container">
       {/* Hero Section */}
       <header className="narrative-hero">
-        <h1>How student loans affect take-home pay</h1>
+        <h1>Student loan deductions calculator</h1>
         <p className="narrative-lead">
-          Student loan repayments add 9% to marginal deduction rates above the repayment threshold.
-          Explore how this affects take-home pay at different income levels.
+          Analyse how student loan repayments affect marginal tax rates, take-home pay, lifetime costs, and the impact of the Autumn Budget 2025 threshold freeze.
         </p>
       </header>
 
       {/* Controls Panel */}
       <section className="controls-panel">
-        <p className="controls-intro">Enter details below to calculate student loan repayments and marginal rates.</p>
+        <p className="controls-intro">Enter borrower details to calculate repayments and deductions.</p>
         <div className="controls-grid">
           <div className="control-item">
             <label>Gross income</label>
@@ -731,7 +1183,7 @@ export default function StudentLoanCalculator() {
                 <span className="info-tooltip">
                   <strong>Postgraduate loan</strong>
                   <br />
-                  A separate loan for Master's or PhD courses. Repayments are 6% of income above £{d3.format(",.0f")(params.slPostgradThreshold)}, collected alongside undergraduate loan repayments. Both are deducted from the same payslip if you have both loans.
+                  A separate loan for Master's or PhD courses. Repayments are 6% of income above £{d3.format(",.0f")(params.slPostgradThreshold)}, collected alongside undergraduate loan repayments. Both are deducted from the same payslip if the borrower has both loans.
                 </span>
               </span>
             </label>
@@ -745,6 +1197,76 @@ export default function StudentLoanCalculator() {
             </label>
             <span className="control-hint">Repays above £{d3.format(",.0f")(params.slPostgradThreshold)}</span>
           </div>
+          <div className="control-item">
+            <label className="label-with-info">
+              Loan balance
+              <span className="info-icon-wrapper">
+                <span className="info-icon">i</span>
+                <span className="info-tooltip">
+                  <strong>Total loan balance</strong>
+                  <br />
+                  The outstanding balance on the student loan. Used for lifetime analysis calculations.
+                </span>
+              </span>
+            </label>
+            <div className="salary-input-wrapper">
+              <span className="currency-symbol">£</span>
+              <input
+                type="number"
+                value={loanAmount}
+                onChange={(e) => setLoanAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                min="0"
+                max="200000"
+                step="1000"
+              />
+            </div>
+          </div>
+          <div className="control-item">
+            <label className="label-with-info">
+              Salary growth
+              <span className="info-icon-wrapper">
+                <span className="info-icon">i</span>
+                <span className="info-tooltip">
+                  <strong>Annual salary growth</strong>
+                  <br />
+                  Expected annual percentage increase in salary. Used for lifetime repayment projections. Historical UK average is around 3%.
+                </span>
+              </span>
+            </label>
+            <select value={salaryGrowthRate} onChange={(e) => setSalaryGrowthRate(parseFloat(e.target.value))}>
+              <option value={0}>0%</option>
+              <option value={0.01}>1%</option>
+              <option value={0.02}>2%</option>
+              <option value={0.03}>3%</option>
+              <option value={0.04}>4%</option>
+              <option value={0.05}>5%</option>
+              <option value={0.06}>6%</option>
+              <option value={0.07}>7%</option>
+            </select>
+          </div>
+          <div className="control-item">
+            <label className="label-with-info">
+              Interest rate
+              <span className="info-icon-wrapper">
+                <span className="info-icon">i</span>
+                <span className="info-tooltip">
+                  <strong>Loan interest rate</strong>
+                  <br />
+                  Annual interest rate charged on the student loan. Used for lifetime repayment projections.
+                </span>
+              </span>
+            </label>
+            <select value={customInterestRate} onChange={(e) => setCustomInterestRate(parseFloat(e.target.value))}>
+              <option value={0}>0%</option>
+              <option value={0.01}>1%</option>
+              <option value={0.02}>2%</option>
+              <option value={0.03}>3%</option>
+              <option value={0.04}>4%</option>
+              <option value={0.05}>5%</option>
+              <option value={0.06}>6%</option>
+              <option value={0.07}>7%</option>
+            </select>
+          </div>
         </div>
       </section>
 
@@ -752,10 +1274,10 @@ export default function StudentLoanCalculator() {
       <section id="overview" ref={sectionRefs.overview} className="narrative-section">
         <h2>Overview</h2>
         <p>
-          Graduates with student loans pay 9% of their income above a threshold towards their loan. This is deducted from wages alongside income tax and National Insurance, increasing the marginal rate—the percentage taken from each additional pound earned. A basic rate taxpayer with a student loan faces a <strong>37%</strong> marginal rate (compared to 28% without a loan), rising to <strong>51%</strong> for higher rate taxpayers (compared to 42% without).
+          Graduates with student loans pay 9% of income above a threshold towards their loan. This is deducted from wages alongside income tax and National Insurance, increasing the marginal rate—the percentage taken from each additional pound earned. A basic rate taxpayer with a student loan faces a <strong>37%</strong> marginal rate (compared to 28% without a loan), rising to <strong>51%</strong> for higher rate taxpayers (compared to 42% without).
         </p>
         <p>
-          Use the controls above to enter gross income, select a loan plan, and see how repayments affect take-home pay. The calculator shows a breakdown of deductions, marginal rates across income levels, and how rates vary by age based on loan write-off dates.
+          This calculator provides six analyses: (1) a <strong>tax position breakdown</strong> comparing deductions for workers with and without student loans; (2) <strong>marginal deduction rates by income</strong> showing how rates change across the income distribution; (3) <strong>take-home pay impact</strong> illustrating the annual cost of loan repayments; (4) <strong>marginal rates by age group</strong> comparing workers of different ages in a single tax year; (5) <strong>lifetime repayment analysis</strong> projecting total repayments over the loan term; and (6) <strong>Autumn Budget 2025 policy impact</strong> quantifying the effect of the Plan 2 threshold freeze.
         </p>
         <details className="expandable-section">
           <summary>Which plan?</summary>
@@ -769,7 +1291,7 @@ export default function StudentLoanCalculator() {
       <section id="breakdown" ref={sectionRefs.breakdown} className="narrative-section">
         <h2>Tax position breakdown</h2>
         <p>
-          Breakdown of deductions and marginal rates for a worker earning £{d3.format(",.0f")(exampleSalary)}, comparing those with a {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label || "student"} loan to those without.
+          The following table provides a detailed breakdown of deductions and marginal rates for a worker earning £{d3.format(",.0f")(exampleSalary)}, comparing those with a {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label || "student"} loan to those without.
         </p>
 
         <div className="tax-position-box">
@@ -936,8 +1458,8 @@ export default function StudentLoanCalculator() {
       <section id="marginalRates" ref={sectionRefs.marginalRates} className="narrative-section">
         <h2>Marginal deduction rates by income</h2>
         <p>
-          The chart shows the composition of marginal deduction rates across the income distribution:
-          income tax (teal), National Insurance (light teal), and student loan repayments (amber).
+          The following chart displays the composition of marginal deduction rates across the income distribution.
+          The stacked areas show income tax (teal), National Insurance (light teal), and student loan repayments (amber).
           The solid line indicates the total rate with a student loan; the dashed line shows the rate without.
         </p>
 
@@ -948,11 +1470,13 @@ export default function StudentLoanCalculator() {
             <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
             <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
             {showPostgrad && <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>Postgrad loan</span></div>}
+            <div className="legend-item"><div className="legend-line solid"></div><span>Total rate (with loan)</span></div>
+            <div className="legend-item"><div className="legend-line dashed"></div><span>Total rate (no loan)</span></div>
           </div>
         </div>
 
         <p>
-          {hasLoan ? `The student loan repayment band (amber) begins at £${d3.format(",.0f")(planThreshold)}—the ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} threshold. Above this level, each additional pound of earnings incurs the 9% repayment rate alongside income tax and NI.` : "Select a student loan plan above to see the impact of repayments on marginal rates."}
+          {hasLoan ? `The student loan repayment band (amber) begins at £${d3.format(",.0f")(planThreshold)}—the ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} threshold. Above this level, each additional pound of earnings incurs the 9% repayment rate alongside income tax and NI. At £${d3.format(",.0f")(exampleSalary)}, a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan faces a marginal rate of ${(marginalWithLoan.totalRate * 100).toFixed(0)}%, compared to ${(marginalWithoutLoan.totalRate * 100).toFixed(0)}% without a loan.` : "Select a student loan plan above to see the impact of repayments on marginal rates."}
         </p>
       </section>
 
@@ -960,8 +1484,7 @@ export default function StudentLoanCalculator() {
       <section id="takeHome" ref={sectionRefs.takeHome} className="narrative-section">
         <h2>Impact on take-home pay</h2>
         <p>
-          At £{d3.format(",.0f")(exampleSalary)} gross income, {hasLoan ? `a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan receives` : "a worker receives"} <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> net
-          {hasLoan && <>, compared to <strong>£{d3.format(",.0f")(withoutLoan.netIncome)}</strong> for a worker without a loan—a difference of <strong>£{d3.format(",.0f")(annualRepayment)}</strong> per year</>}.
+          The following chart compares annual take-home pay for workers with and without student loans across the income distribution. The shaded area highlights the gap between the two scenarios.
         </p>
 
         <div className="narrative-chart-container">
@@ -973,33 +1496,134 @@ export default function StudentLoanCalculator() {
         </div>
 
         <p>
-          The shaded area shows the cumulative difference in take-home pay. This gap increases with income,
-          as higher earners make larger absolute repayments.
+          At £{d3.format(",.0f")(exampleSalary)} gross income, {hasLoan ? `a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan receives` : "a worker receives"} <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> net
+          {hasLoan && <>, compared to <strong>£{d3.format(",.0f")(withoutLoan.netIncome)}</strong> for a worker without a loan—a difference of <strong>£{d3.format(",.0f")(annualRepayment)}</strong> per year</>}. The gap increases with income, as higher earners make larger absolute repayments.
         </p>
       </section>
 
       {/* Section 3: Age-based comparison */}
       <section id="byAge" ref={sectionRefs.byAge} className="narrative-section">
-        <h2>Marginal rate by age</h2>
+        <h2>Marginal rate by age group in {formatTaxYear(selectedYear)}</h2>
         <p>
-          Workers with student loans face higher marginal rates than those without at the same salary level.
-          This chart assumes workers under {loanCutoffAge} have student loans, based on {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label}'s write-off period.
+          The following chart compares marginal rates across <strong>different workers of different ages</strong> in {formatTaxYear(selectedYear)}—not
+          the same person ageing over time. Workers under {loanCutoffAge} are assumed to still have student loans
+          (based on {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label}'s write-off period), whilst older workers have paid off or had their loans written off.
         </p>
 
         <div className="narrative-chart-container">
           <div ref={ageChartRef} className="narrative-chart"></div>
           <div className="chart-legend">
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Has student loan</span></div>
+            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Has student loan (under {loanCutoffAge})</span></div>
             <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan ({loanCutoffAge}+)</span></div>
           </div>
         </div>
 
         <p>
-          Student loans are automatically written off after a set period: <strong>25 years</strong> for Plan 1,{" "}
-          <strong>30 years</strong> for Plans 2 and 4, and <strong>40 years</strong> for Plan 5.
-          The cutoff age shown ({loanCutoffAge}) is calculated from a typical graduation age of 22.
+          At £{d3.format(",.0f")(exampleSalary)}, workers under {loanCutoffAge} with {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loans face a marginal rate of <strong>{(marginalWithLoan.totalRate * 100).toFixed(0)}%</strong>, whilst those aged {loanCutoffAge} and above (whose loans have been written off) face <strong>{(marginalWithoutLoan.totalRate * 100).toFixed(0)}%</strong>. Student loans are automatically written off after <strong>25 years</strong> for Plan 1, <strong>30 years</strong> for Plans 2 and 4, and <strong>40 years</strong> for Plan 5.
         </p>
       </section>
+
+      {/* Section: Lifetime Loan Analysis */}
+      {hasLoan && (
+        <section id="lifetime" ref={sectionRefs.lifetime} className="narrative-section">
+          <h2>Lifetime repayment analysis</h2>
+          <p>
+            The following chart projects cumulative repayments and remaining balance over the life of the loan.
+            Total repayments depend on salary trajectory, the loan's interest rate, and the write-off period.
+            {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loans are written off after <strong>{getPlanWriteoffYears(params, selectedPlan)} years</strong>.
+            This analysis assumes graduation at age <strong>{age}</strong>.
+          </p>
+
+          {apiLoading && <div className="api-loading">Loading data from API...</div>}
+          {apiError && <div className="api-error">Error: {apiError}</div>}
+
+          <div className="narrative-chart-container">
+            <div ref={lifetimeChartRef} className="narrative-chart"></div>
+            <div className="chart-legend">
+              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.primary }}></div><span>Total repaid</span></div>
+              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan, opacity: 0.7 }}></div><span>Remaining balance</span></div>
+            </div>
+          </div>
+
+          <p>
+            With an original loan of <strong>£{d3.format(",.0f")(loanAmount)}</strong>, a starting salary of{" "}
+            <strong>£{d3.format(",.0f")(exampleSalary)}</strong>, and {(salaryGrowthRate * 100).toFixed(0)}% annual salary growth,
+            the borrower would repay a total of <strong>£{d3.format(",.0f")(lifetimeData[lifetimeData.length - 1]?.totalRepaid || 0)}</strong> over{" "}
+            <strong>{lifetimeData.findIndex(d => d.remainingBalance === 0) > 0
+              ? `${lifetimeData.findIndex(d => d.remainingBalance === 0)} years`
+              : `${getPlanWriteoffYears(params, selectedPlan)} years (write-off)`}</strong>.{" "}
+            {lifetimeData[lifetimeData.length - 1]?.remainingBalance > 0
+              ? `The remaining £${d3.format(",.0f")(lifetimeData[lifetimeData.length - 1]?.remainingBalance)} would be written off.`
+              : `The loan would be fully repaid before the ${getPlanWriteoffYears(params, selectedPlan)}-year write-off period.`}
+          </p>
+        </section>
+      )}
+
+      {/* Section: Autumn Budget 2025 Effects */}
+      {hasLoan && (
+        <section id="policy" ref={sectionRefs.policy} className="narrative-section">
+          <h2>Autumn Budget 2025 effects on student loan</h2>
+
+          {selectedPlan !== "plan2" ? (
+            <div className="plan2-notice">
+              <p>
+                This analysis applies to <strong>Plan 2</strong> student loans only. The Autumn Budget 2025
+                froze Plan 2 repayment thresholds for 3 years (2027–2029).
+              </p>
+              <p>Select <strong>Plan 2</strong> above to see the impact of the threshold freeze.</p>
+            </div>
+          ) : (
+            <>
+              <p>
+                The Autumn Budget 2025 froze Plan 2 repayment thresholds at <strong>£29,385</strong> for
+                3 years from April 2027 through April 2029. Without the freeze, thresholds would have
+                continued rising with RPI inflation. RPI uprating resumes from 2030.
+              </p>
+
+              <p>
+                The following chart shows the {policyChartView === "annual" ? "annual" : "cumulative"} extra
+                repayment at each age due to this policy change compared to RPI-linked thresholds.
+                {policyChartView === "annual"
+                  ? " Each bar represents how much more the borrower pays that year under the frozen threshold."
+                  : " Each bar represents the total extra amount paid up to that age."}
+                {" "}This analysis assumes graduation at age <strong>{age}</strong>.
+              </p>
+
+              <div className="narrative-chart-container">
+                <div className="chart-header" style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+                  <div className="chart-view-toggle">
+                    <button
+                      className={`toggle-btn ${policyChartView === "annual" ? "active" : ""}`}
+                      onClick={() => setPolicyChartView("annual")}
+                    >
+                      Annual
+                    </button>
+                    <button
+                      className={`toggle-btn ${policyChartView === "cumulative" ? "active" : ""}`}
+                      onClick={() => setPolicyChartView("cumulative")}
+                    >
+                      Cumulative
+                    </button>
+                  </div>
+                </div>
+                <div ref={policyChartRef} className="narrative-chart"></div>
+                <div className="chart-legend">
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>{policyChartView === "annual" ? "Annual" : "Cumulative"} extra repayment due to threshold freeze</span></div>
+                </div>
+              </div>
+
+              <p>
+                The 3-year threshold freeze results in <strong>{(() => {
+                  const impact = policyData.filter(d => (d.balanceFrozen || 0) > 0).slice(-1)[0]?.cumulativeImpact || policyData[policyData.length - 1]?.cumulativeImpact || 0;
+                  return impact >= 0 ? `£${d3.format(",.0f")(impact)}` : `-£${d3.format(",.0f")(Math.abs(impact))}`;
+                })()}</strong> more
+                in total repayments over the loan's lifetime compared to RPI-linked thresholds. Without the freeze, thresholds would reach{" "}
+                £{d3.format(",.0f")(policyData[policyData.length - 1]?.thresholdIndexed || 0)} by the write-off date.
+              </p>
+            </>
+          )}
+        </section>
+      )}
 
       <div ref={tooltipRef} className="lifecycle-tooltip"></div>
 

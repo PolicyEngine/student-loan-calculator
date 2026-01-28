@@ -61,20 +61,26 @@ html {
 
 .controls-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr 1.5fr 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   align-items: start;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .controls-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
   .controls-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .controls-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -353,6 +359,126 @@ html {
   margin-bottom: 0;
 }
 
+/* API loading/error states */
+.api-loading {
+  padding: 12px 16px;
+  background: #e6fffa;
+  border-left: 4px solid #319795;
+  color: #234e52;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  border-radius: 4px;
+}
+
+.api-error {
+  padding: 12px 16px;
+  background: #fff5f5;
+  border-left: 4px solid #e53e3e;
+  color: #742a2a;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  border-radius: 4px;
+}
+
+/* Chart controls box */
+.chart-controls-box {
+  display: flex;
+  gap: 24px;
+  padding: 16px 20px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.chart-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chart-control label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.chart-control input,
+.chart-control select {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: white;
+  min-width: 120px;
+}
+
+.chart-control input:focus,
+.chart-control select:focus {
+  outline: none;
+  border-color: #319795;
+  box-shadow: 0 0 0 2px rgba(49, 151, 149, 0.2);
+}
+
+.chart-control .control-value {
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #319795;
+}
+
+@media (max-width: 600px) {
+  .chart-controls-box {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .chart-control input,
+  .chart-control select {
+    width: 100%;
+  }
+}
+
+/* Toggle switch */
+.toggle-switch {
+  display: flex;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toggle-switch button {
+  padding: 8px 16px;
+  border: none;
+  background: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-switch button:first-child {
+  border-right: 1px solid #cbd5e1;
+}
+
+.toggle-switch button:hover {
+  background: #f1f5f9;
+}
+
+.toggle-switch button.active {
+  background: #319795;
+  color: white;
+}
+
+.toggle-switch button.active:hover {
+  background: #2c7a7b;
+}
+
 /* Expandable section */
 .expandable-section {
   margin-top: 8px;
@@ -447,6 +573,26 @@ html {
   width: 10px;
   height: 10px;
   border-radius: 2px;
+}
+
+.legend-line {
+  width: 20px;
+  height: 3px;
+  background: #344054;
+}
+
+.legend-line.solid {
+  background: #344054;
+}
+
+.legend-line.dashed {
+  background: repeating-linear-gradient(
+    to right,
+    #344054 0px,
+    #344054 4px,
+    transparent 4px,
+    transparent 7px
+  );
 }
 
 /* Tax Position Box - Unified Section */
@@ -1041,4 +1187,102 @@ html {
   .summary-value {
     font-size: 1.25rem;
   }
+}
+
+/* Lifetime, Interest, Combined, and Policy Summary Sections */
+.lifetime-summary,
+.interest-summary,
+.combined-summary,
+.policy-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 24px 0;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.interest-summary {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 768px) {
+  .lifetime-summary,
+  .interest-summary,
+  .combined-summary,
+  .policy-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .lifetime-summary,
+  .interest-summary,
+  .policy-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Plan 2 Notice Box */
+.plan2-notice {
+  padding: 24px;
+  background: #fef3c7;
+  border-radius: 12px;
+  border: 1px solid #f59e0b;
+  text-align: left;
+}
+
+.plan2-notice p {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  color: #92400e;
+  line-height: 1.6;
+}
+
+.plan2-notice p:last-child {
+  margin-bottom: 0;
+}
+
+.plan2-notice strong {
+  color: #78350f;
+}
+
+/* Chart View Toggle */
+.chart-view-toggle {
+  display: inline-flex;
+  gap: 0;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.toggle-btn {
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.toggle-btn:hover {
+  color: #334155;
+}
+
+.toggle-btn.active {
+  background: white;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Chart legend with toggle */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }

@@ -1,0 +1,125 @@
+employment_income,income_tax,national_insurance,student_loan_repayment,income_tax_marginal_rate,ni_marginal_rate,student_loan_marginal_rate,total_marginal_rate,age,has_student_loan,cohort_name,cohort_description
+0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+5000.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+10000.0,0.0,0.0,0.0,0.0486,0.019440314,0.0,0.06804031,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+15000.0,486.0,194.40314,0.0,0.1486,0.059440315,0.0,0.20804031,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+20000.0,1486.0,594.40314,0.0,0.2,0.08,0.0,0.28,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+25000.0,2486.0,994.40314,0.0,0.2,0.08000002,0.005535,0.28553504,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+30000.0,3486.0,1394.4033,55.350002,0.2,0.07999998,0.050535,0.33053496,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+35000.0,4486.0,1794.403,505.35,0.2,0.079999976,0.09,0.36999997,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+40000.0,5486.0,2194.403,955.35004,0.2,0.080000035,0.09000001,0.37000003,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+45000.0,6486.0,2594.4033,1405.3501,0.2,0.08000003,0.09,0.37000003,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+50000.0,7486.0,2994.4033,1855.3501,0.2946,0.051619798,0.09,0.4362198,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+55000.0,9432.0,3110.6013,2305.35,0.3946,0.02161975,0.09,0.50621974,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+60000.0,11432.0,3210.6008,2755.35,0.4,0.019999927,0.09,0.50999993,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+65000.0,13432.0,3310.6006,3205.35,0.4,0.020000048,0.09,0.51000005,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+70000.0,15432.0,3410.6013,3655.35,0.4,0.020000024,0.09,0.51,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+75000.0,17432.0,3510.6008,4105.35,0.4,0.019999927,0.09,0.50999993,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+80000.0,19432.0,3610.6006,4555.35,0.4,0.020000048,0.09,0.51000005,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+85000.0,21432.0,3710.6013,5005.35,0.4,0.020000024,0.09,0.51,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+90000.0,23432.0,3810.6008,5455.35,0.4,0.019999927,0.09,0.50999993,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+95000.0,25432.0,3910.6006,5905.35,0.4,0.020000048,0.09,0.51000005,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+100000.0,27432.0,4010.6013,6355.35,0.5,0.020000048,0.09,0.61,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+105000.0,30432.0,4110.601,6805.35,0.6,0.019999927,0.09,0.7099999,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+110000.0,33432.0,4210.6006,7255.35,0.6,0.02,0.09,0.71000004,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+115000.0,36432.0,4310.601,7705.35,0.6,0.02,0.09,0.71000004,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+120000.0,39432.0,4410.6006,8155.35,0.6,0.019999903,0.09000005,0.71,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+125000.0,42432.0,4510.6,8605.351,0.5271,0.020000048,0.09000005,0.6371001,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+130000.0,44703.0,4610.601,9055.351,0.4521,0.020000048,0.09,0.56210005,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+135000.0,46953.0,4710.6006,9505.351,0.45,0.019999903,0.09,0.5599999,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+140000.0,49203.0,4810.6,9955.351,0.45,0.020000048,0.09,0.56000006,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+145000.0,51453.0,4910.601,10405.351,0.45,0.020000147,0.09,0.5600002,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+150000.0,53703.0,5010.6016,10855.351,0.45,0.020000098,0.09,0.56000006,28,True,Under 30 (Plan 2),"Started university 2015+, has Plan 2 student loan"
+0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+5000.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+10000.0,0.0,0.0,0.0,0.0486,0.019440314,0.0,0.06804031,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+15000.0,486.0,194.40314,0.0,0.1486,0.059440315,0.0,0.20804031,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+20000.0,1486.0,594.40314,0.0,0.2,0.08,0.0,0.28,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+25000.0,2486.0,994.40314,0.0,0.2,0.08000002,0.005535,0.28553504,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+30000.0,3486.0,1394.4033,55.350002,0.2,0.07999998,0.050535,0.33053496,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+35000.0,4486.0,1794.403,505.35,0.2,0.079999976,0.09,0.36999997,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+40000.0,5486.0,2194.403,955.35004,0.2,0.080000035,0.09000001,0.37000003,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+45000.0,6486.0,2594.4033,1405.3501,0.2,0.08000003,0.09,0.37000003,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+50000.0,7486.0,2994.4033,1855.3501,0.2946,0.051619798,0.09,0.4362198,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+55000.0,9432.0,3110.6013,2305.35,0.3946,0.02161975,0.09,0.50621974,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+60000.0,11432.0,3210.6008,2755.35,0.4,0.019999927,0.09,0.50999993,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+65000.0,13432.0,3310.6006,3205.35,0.4,0.020000048,0.09,0.51000005,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+70000.0,15432.0,3410.6013,3655.35,0.4,0.020000024,0.09,0.51,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+75000.0,17432.0,3510.6008,4105.35,0.4,0.019999927,0.09,0.50999993,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+80000.0,19432.0,3610.6006,4555.35,0.4,0.020000048,0.09,0.51000005,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+85000.0,21432.0,3710.6013,5005.35,0.4,0.020000024,0.09,0.51,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+90000.0,23432.0,3810.6008,5455.35,0.4,0.019999927,0.09,0.50999993,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+95000.0,25432.0,3910.6006,5905.35,0.4,0.020000048,0.09,0.51000005,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+100000.0,27432.0,4010.6013,6355.35,0.5,0.020000048,0.09,0.61,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+105000.0,30432.0,4110.601,6805.35,0.6,0.019999927,0.09,0.7099999,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+110000.0,33432.0,4210.6006,7255.35,0.6,0.02,0.09,0.71000004,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+115000.0,36432.0,4310.601,7705.35,0.6,0.02,0.09,0.71000004,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+120000.0,39432.0,4410.6006,8155.35,0.6,0.019999903,0.09000005,0.71,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+125000.0,42432.0,4510.6,8605.351,0.5271,0.020000048,0.09000005,0.6371001,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+130000.0,44703.0,4610.601,9055.351,0.4521,0.020000048,0.09,0.56210005,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+135000.0,46953.0,4710.6006,9505.351,0.45,0.019999903,0.09,0.5599999,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+140000.0,49203.0,4810.6,9955.351,0.45,0.020000048,0.09,0.56000006,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+145000.0,51453.0,4910.601,10405.351,0.45,0.020000147,0.09,0.5600002,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+150000.0,53703.0,5010.6016,10855.351,0.45,0.020000098,0.09,0.56000006,32,True,30-35 (Plan 2),"Started university 2012-2014, has Plan 2 student loan"
+0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,45,False,40+ (No loan),Pre-2012 university or no student loan
+5000.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,45,False,40+ (No loan),Pre-2012 university or no student loan
+10000.0,0.0,0.0,0.0,0.0486,0.019440314,0.0,0.06804031,45,False,40+ (No loan),Pre-2012 university or no student loan
+15000.0,486.0,194.40314,0.0,0.1486,0.059440315,0.0,0.20804031,45,False,40+ (No loan),Pre-2012 university or no student loan
+20000.0,1486.0,594.40314,0.0,0.2,0.08,0.0,0.28,45,False,40+ (No loan),Pre-2012 university or no student loan
+25000.0,2486.0,994.40314,0.0,0.2,0.08000002,0.0,0.28000003,45,False,40+ (No loan),Pre-2012 university or no student loan
+30000.0,3486.0,1394.4033,0.0,0.2,0.07999998,0.0,0.27999997,45,False,40+ (No loan),Pre-2012 university or no student loan
+35000.0,4486.0,1794.403,0.0,0.2,0.079999976,0.0,0.27999997,45,False,40+ (No loan),Pre-2012 university or no student loan
+40000.0,5486.0,2194.403,0.0,0.2,0.080000035,0.0,0.28000003,45,False,40+ (No loan),Pre-2012 university or no student loan
+45000.0,6486.0,2594.4033,0.0,0.2,0.08000003,0.0,0.28000003,45,False,40+ (No loan),Pre-2012 university or no student loan
+50000.0,7486.0,2994.4033,0.0,0.2946,0.051619798,0.0,0.3462198,45,False,40+ (No loan),Pre-2012 university or no student loan
+55000.0,9432.0,3110.6013,0.0,0.3946,0.02161975,0.0,0.41621974,45,False,40+ (No loan),Pre-2012 university or no student loan
+60000.0,11432.0,3210.6008,0.0,0.4,0.019999927,0.0,0.41999993,45,False,40+ (No loan),Pre-2012 university or no student loan
+65000.0,13432.0,3310.6006,0.0,0.4,0.020000048,0.0,0.42000005,45,False,40+ (No loan),Pre-2012 university or no student loan
+70000.0,15432.0,3410.6013,0.0,0.4,0.020000024,0.0,0.42000002,45,False,40+ (No loan),Pre-2012 university or no student loan
+75000.0,17432.0,3510.6008,0.0,0.4,0.019999927,0.0,0.41999993,45,False,40+ (No loan),Pre-2012 university or no student loan
+80000.0,19432.0,3610.6006,0.0,0.4,0.020000048,0.0,0.42000005,45,False,40+ (No loan),Pre-2012 university or no student loan
+85000.0,21432.0,3710.6013,0.0,0.4,0.020000024,0.0,0.42000002,45,False,40+ (No loan),Pre-2012 university or no student loan
+90000.0,23432.0,3810.6008,0.0,0.4,0.019999927,0.0,0.41999993,45,False,40+ (No loan),Pre-2012 university or no student loan
+95000.0,25432.0,3910.6006,0.0,0.4,0.020000048,0.0,0.42000005,45,False,40+ (No loan),Pre-2012 university or no student loan
+100000.0,27432.0,4010.6013,0.0,0.5,0.020000048,0.0,0.52000004,45,False,40+ (No loan),Pre-2012 university or no student loan
+105000.0,30432.0,4110.601,0.0,0.6,0.019999927,0.0,0.61999995,45,False,40+ (No loan),Pre-2012 university or no student loan
+110000.0,33432.0,4210.6006,0.0,0.6,0.02,0.0,0.62,45,False,40+ (No loan),Pre-2012 university or no student loan
+115000.0,36432.0,4310.601,0.0,0.6,0.02,0.0,0.62,45,False,40+ (No loan),Pre-2012 university or no student loan
+120000.0,39432.0,4410.6006,0.0,0.6,0.019999903,0.0,0.61999995,45,False,40+ (No loan),Pre-2012 university or no student loan
+125000.0,42432.0,4510.6,0.0,0.5271,0.020000048,0.0,0.54710007,45,False,40+ (No loan),Pre-2012 university or no student loan
+130000.0,44703.0,4610.601,0.0,0.4521,0.020000048,0.0,0.47210005,45,False,40+ (No loan),Pre-2012 university or no student loan
+135000.0,46953.0,4710.6006,0.0,0.45,0.019999903,0.0,0.46999988,45,False,40+ (No loan),Pre-2012 university or no student loan
+140000.0,49203.0,4810.6,0.0,0.45,0.020000048,0.0,0.47000003,45,False,40+ (No loan),Pre-2012 university or no student loan
+145000.0,51453.0,4910.601,0.0,0.45,0.020000147,0.0,0.47000015,45,False,40+ (No loan),Pre-2012 university or no student loan
+150000.0,53703.0,5010.6016,0.0,0.45,0.020000098,0.0,0.4700001,45,False,40+ (No loan),Pre-2012 university or no student loan
+0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,55,False,50+ (No loan),Pre-2012 university or no student loan
+5000.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,55,False,50+ (No loan),Pre-2012 university or no student loan
+10000.0,0.0,0.0,0.0,0.0486,0.019440314,0.0,0.06804031,55,False,50+ (No loan),Pre-2012 university or no student loan
+15000.0,486.0,194.40314,0.0,0.1486,0.059440315,0.0,0.20804031,55,False,50+ (No loan),Pre-2012 university or no student loan
+20000.0,1486.0,594.40314,0.0,0.2,0.08,0.0,0.28,55,False,50+ (No loan),Pre-2012 university or no student loan
+25000.0,2486.0,994.40314,0.0,0.2,0.08000002,0.0,0.28000003,55,False,50+ (No loan),Pre-2012 university or no student loan
+30000.0,3486.0,1394.4033,0.0,0.2,0.07999998,0.0,0.27999997,55,False,50+ (No loan),Pre-2012 university or no student loan
+35000.0,4486.0,1794.403,0.0,0.2,0.079999976,0.0,0.27999997,55,False,50+ (No loan),Pre-2012 university or no student loan
+40000.0,5486.0,2194.403,0.0,0.2,0.080000035,0.0,0.28000003,55,False,50+ (No loan),Pre-2012 university or no student loan
+45000.0,6486.0,2594.4033,0.0,0.2,0.08000003,0.0,0.28000003,55,False,50+ (No loan),Pre-2012 university or no student loan
+50000.0,7486.0,2994.4033,0.0,0.2946,0.051619798,0.0,0.3462198,55,False,50+ (No loan),Pre-2012 university or no student loan
+55000.0,9432.0,3110.6013,0.0,0.3946,0.02161975,0.0,0.41621974,55,False,50+ (No loan),Pre-2012 university or no student loan
+60000.0,11432.0,3210.6008,0.0,0.4,0.019999927,0.0,0.41999993,55,False,50+ (No loan),Pre-2012 university or no student loan
+65000.0,13432.0,3310.6006,0.0,0.4,0.020000048,0.0,0.42000005,55,False,50+ (No loan),Pre-2012 university or no student loan
+70000.0,15432.0,3410.6013,0.0,0.4,0.020000024,0.0,0.42000002,55,False,50+ (No loan),Pre-2012 university or no student loan
+75000.0,17432.0,3510.6008,0.0,0.4,0.019999927,0.0,0.41999993,55,False,50+ (No loan),Pre-2012 university or no student loan
+80000.0,19432.0,3610.6006,0.0,0.4,0.020000048,0.0,0.42000005,55,False,50+ (No loan),Pre-2012 university or no student loan
+85000.0,21432.0,3710.6013,0.0,0.4,0.020000024,0.0,0.42000002,55,False,50+ (No loan),Pre-2012 university or no student loan
+90000.0,23432.0,3810.6008,0.0,0.4,0.019999927,0.0,0.41999993,55,False,50+ (No loan),Pre-2012 university or no student loan
+95000.0,25432.0,3910.6006,0.0,0.4,0.020000048,0.0,0.42000005,55,False,50+ (No loan),Pre-2012 university or no student loan
+100000.0,27432.0,4010.6013,0.0,0.5,0.020000048,0.0,0.52000004,55,False,50+ (No loan),Pre-2012 university or no student loan
+105000.0,30432.0,4110.601,0.0,0.6,0.019999927,0.0,0.61999995,55,False,50+ (No loan),Pre-2012 university or no student loan
+110000.0,33432.0,4210.6006,0.0,0.6,0.02,0.0,0.62,55,False,50+ (No loan),Pre-2012 university or no student loan
+115000.0,36432.0,4310.601,0.0,0.6,0.02,0.0,0.62,55,False,50+ (No loan),Pre-2012 university or no student loan
+120000.0,39432.0,4410.6006,0.0,0.6,0.019999903,0.0,0.61999995,55,False,50+ (No loan),Pre-2012 university or no student loan
+125000.0,42432.0,4510.6,0.0,0.5271,0.020000048,0.0,0.54710007,55,False,50+ (No loan),Pre-2012 university or no student loan
+130000.0,44703.0,4610.601,0.0,0.4521,0.020000048,0.0,0.47210005,55,False,50+ (No loan),Pre-2012 university or no student loan
+135000.0,46953.0,4710.6006,0.0,0.45,0.019999903,0.0,0.46999988,55,False,50+ (No loan),Pre-2012 university or no student loan
+140000.0,49203.0,4810.6,0.0,0.45,0.020000048,0.0,0.47000003,55,False,50+ (No loan),Pre-2012 university or no student loan
+145000.0,51453.0,4910.601,0.0,0.45,0.020000147,0.0,0.47000015,55,False,50+ (No loan),Pre-2012 university or no student loan
+150000.0,53703.0,5010.6016,0.0,0.45,0.020000098,0.0,0.4700001,55,False,50+ (No loan),Pre-2012 university or no student loan
