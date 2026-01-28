@@ -1,0 +1,10 @@
+# Ignore Python backend files - API is deployed separately to Cloud Run
+src/uk_budget_data/
+pyproject.toml
+uv.lock
+Dockerfile
+cloudbuild.yaml
+docker-compose.yml
+*.py
+__pycache__/
+.venv/

@@ -73,6 +73,32 @@ def get_tax_parameters(year: int = 2026) -> dict:
     sl_postgrad_threshold = sl.thresholds.postgraduate(date)
     sl_postgrad_rate = sl.postgraduate_repayment_rate(date)
 
+    # Student loan interest rates (from PolicyEngine UK parameters)
+    # Plan 2 interest: RPI + 0-3% depending on income
+    # Plan 1/4: RPI or Bank of England base rate + 1% (whichever is lower)
+    # Plan 5: RPI only
+    # Note: These are approximate current rates - actual rates vary
+    try:
+        sl_interest = params.gov.hmrc.student_loans.interest
+        sl_plan1_interest = sl_interest.plan_1.rate(date)
+        sl_plan2_interest_min = sl_interest.plan_2.rate_below_threshold(date)
+        sl_plan2_interest_max = sl_interest.plan_2.rate_above_threshold(date)
+        sl_plan4_interest = sl_interest.plan_4.rate(date)
+        sl_plan5_interest = sl_interest.plan_5.rate(date)
+    except (AttributeError, KeyError):
+        # Fallback to typical values if not in PE params
+        sl_plan1_interest = 0.045  # ~4.5%
+        sl_plan2_interest_min = 0.045  # RPI
+        sl_plan2_interest_max = 0.078  # RPI + 3%
+        sl_plan4_interest = 0.045  # ~4.5%
+        sl_plan5_interest = 0.045  # RPI
+
+    # Write-off periods (years after graduation/first repayment)
+    sl_plan1_writeoff = 25
+    sl_plan2_writeoff = 30
+    sl_plan4_writeoff = 30
+    sl_plan5_writeoff = 40
+
     return {
         # Income tax
         "personal_allowance": pa_amount,
@@ -88,7 +114,7 @@ def get_tax_parameters(year: int = 2026) -> dict:
         "ni_upper_earnings_limit": ni_uel,
         "ni_main_rate": ni_main_rate,
         "ni_higher_rate": ni_higher_rate,
-        # Student loans
+        # Student loans - thresholds and repayment rates
         "sl_repayment_rate": sl_repayment_rate,
         "sl_plan2_threshold": sl_plan2_threshold,
         "sl_plan1_threshold": sl_plan1_threshold,
@@ -96,6 +122,17 @@ def get_tax_parameters(year: int = 2026) -> dict:
         "sl_plan5_threshold": sl_plan5_threshold,
         "sl_postgrad_threshold": sl_postgrad_threshold,
         "sl_postgrad_rate": sl_postgrad_rate,
+        # Student loans - interest rates
+        "sl_plan1_interest": sl_plan1_interest,
+        "sl_plan2_interest_min": sl_plan2_interest_min,
+        "sl_plan2_interest_max": sl_plan2_interest_max,
+        "sl_plan4_interest": sl_plan4_interest,
+        "sl_plan5_interest": sl_plan5_interest,
+        # Student loans - write-off periods
+        "sl_plan1_writeoff": sl_plan1_writeoff,
+        "sl_plan2_writeoff": sl_plan2_writeoff,
+        "sl_plan4_writeoff": sl_plan4_writeoff,
+        "sl_plan5_writeoff": sl_plan5_writeoff,
     }
 
 
@@ -415,6 +452,461 @@ def get_key_thresholds(year: int = 2026) -> list[dict]:
     ]
 
 
+def generate_lifetime_repayment_data(
+    starting_salary: float = 50_000,
+    loan_amount: float = 45_000,
+    salary_growth_rate: float = 0.03,
+    plan: str = "plan2",
+    year: int = 2026,
+    interest_rate_override: float = None,
+) -> pd.DataFrame:
+    """Generate year-by-year lifetime repayment analysis for a student loan.
+
+    Models current law including Autumn Budget 2025 policy:
+    - Plan 2 threshold frozen at £29,385 for 2027-2029
+    - RPI uprating resumes from 2030
+
+    Args:
+        starting_salary: Starting annual salary.
+        loan_amount: Initial loan balance.
+        salary_growth_rate: Annual salary growth rate.
+        plan: Student loan plan (plan1, plan2, plan4, plan5).
+        year: Tax year for parameter lookup (starting year).
+        interest_rate_override: Custom interest rate (overrides plan default if set).
+
+    Returns:
+        DataFrame with yearly repayment data including balance, interest, repayments.
+    """
+    params = get_tax_parameters(year)
+
+    # Get plan-specific parameters
+    plan_config = {
+        "plan1": {
+            "threshold": params["sl_plan1_threshold"],
+            "interest": params["sl_plan1_interest"],
+            "writeoff": params["sl_plan1_writeoff"],
+        },
+        "plan2": {
+            "threshold": params["sl_plan2_threshold"],
+            "interest": (params["sl_plan2_interest_min"] + params["sl_plan2_interest_max"]) / 2,  # Average
+            "writeoff": params["sl_plan2_writeoff"],
+        },
+        "plan4": {
+            "threshold": params["sl_plan4_threshold"],
+            "interest": params["sl_plan4_interest"],
+            "writeoff": params["sl_plan4_writeoff"],
+        },
+        "plan5": {
+            "threshold": params["sl_plan5_threshold"],
+            "interest": params["sl_plan5_interest"],
+            "writeoff": params["sl_plan5_writeoff"],
+        },
+    }
+
+    config = plan_config.get(plan, plan_config["plan2"])
+    base_threshold = config["threshold"]
+    interest_rate = interest_rate_override if interest_rate_override is not None else config["interest"]
+    writeoff_years = config["writeoff"]
+    repayment_rate = params["sl_repayment_rate"]
+
+    results = []
+    balance = loan_amount
+    total_repaid = 0
+    total_interest = 0
+    salary = starting_salary
+    threshold = base_threshold  # Will be updated based on Autumn Budget policy
+
+    for yr in range(writeoff_years + 1):
+        # Calculate calendar year for this repayment year
+        calendar_year = year + yr
+
+        if yr == 0:
+            results.append({
+                "year": 0,
+                "calendar_year": calendar_year,
+                "salary": starting_salary,
+                "balance_start": loan_amount,
+                "interest_charge": 0,
+                "annual_repayment": 0,
+                "total_repaid": 0,
+                "total_interest": 0,
+                "balance_end": loan_amount,
+                "threshold": threshold,
+            })
+            continue
+
+        # Update threshold based on Autumn Budget 2025 policy (Plan 2 only)
+        # Frozen 2027-2029, RPI uprating resumes 2030+
+        if plan == "plan2":
+            if calendar_year >= 2030:
+                # RPI uprating resumes from 2030
+                rpi_rate = get_rpi_rate(calendar_year)
+                threshold *= (1 + rpi_rate)
+            # 2027-2029: threshold stays frozen at base_threshold (no update needed)
+        else:
+            # Other plans: assume RPI uprating continues
+            if calendar_year >= 2027:
+                rpi_rate = get_rpi_rate(calendar_year)
+                threshold *= (1 + rpi_rate)
+
+        balance_start = balance
+
+        # Calculate repayment FIRST (matches UK Autumn Budget methodology)
+        annual_repayment = max(0, (salary - threshold) * repayment_rate) if salary > threshold else 0
+        actual_repayment = min(annual_repayment, balance)
+        balance_after_repayment = max(0, balance - actual_repayment)
+        total_repaid += actual_repayment
+
+        # THEN apply interest on remaining balance
+        interest_charge = balance_after_repayment * interest_rate
+        balance = balance_after_repayment + interest_charge
+        total_interest += interest_charge
+
+        results.append({
+            "year": yr,
+            "calendar_year": calendar_year,
+            "salary": salary,
+            "balance_start": balance_start,
+            "interest_charge": interest_charge,
+            "annual_repayment": actual_repayment,
+            "total_repaid": total_repaid,
+            "total_interest": total_interest,
+            "balance_end": balance,
+            "threshold": threshold,
+        })
+
+        # Grow salary for next year
+        salary *= (1 + salary_growth_rate)
+
+        # If fully repaid, stop
+        if balance <= 0:
+            break
+
+    df = pd.DataFrame(results)
+    df["plan"] = plan
+    df["starting_salary"] = starting_salary
+    df["loan_amount"] = loan_amount
+    df["interest_rate"] = interest_rate
+    df["writeoff_years"] = writeoff_years
+    df["written_off"] = df["balance_end"].iloc[-1] if len(df) > 0 else 0
+
+    return df
+
+
+def generate_interest_comparison_data(
+    starting_salary: float = 50_000,
+    loan_amount: float = 45_000,
+    salary_growth_rate: float = 0.03,
+    plan: str = "plan2",
+    year: int = 2026,
+    interest_rate_override: float = None,
+) -> pd.DataFrame:
+    """Compare loan balance evolution with and without interest.
+
+    Args:
+        starting_salary: Starting annual salary.
+        loan_amount: Initial loan balance.
+        salary_growth_rate: Annual salary growth rate.
+        plan: Student loan plan.
+        year: Tax year for parameter lookup.
+        interest_rate_override: Custom interest rate (overrides plan default if set).
+
+    Returns:
+        DataFrame comparing with/without interest scenarios.
+    """
+    params = get_tax_parameters(year)
+
+    plan_config = {
+        "plan1": {
+            "threshold": params["sl_plan1_threshold"],
+            "interest": params["sl_plan1_interest"],
+            "writeoff": params["sl_plan1_writeoff"],
+        },
+        "plan2": {
+            "threshold": params["sl_plan2_threshold"],
+            "interest": (params["sl_plan2_interest_min"] + params["sl_plan2_interest_max"]) / 2,
+            "writeoff": params["sl_plan2_writeoff"],
+        },
+        "plan4": {
+            "threshold": params["sl_plan4_threshold"],
+            "interest": params["sl_plan4_interest"],
+            "writeoff": params["sl_plan4_writeoff"],
+        },
+        "plan5": {
+            "threshold": params["sl_plan5_threshold"],
+            "interest": params["sl_plan5_interest"],
+            "writeoff": params["sl_plan5_writeoff"],
+        },
+    }
+
+    config = plan_config.get(plan, plan_config["plan2"])
+    threshold = config["threshold"]
+    interest_rate = interest_rate_override if interest_rate_override is not None else config["interest"]
+    writeoff_years = config["writeoff"]
+    repayment_rate = params["sl_repayment_rate"]
+
+    results = []
+    balance_with_interest = loan_amount
+    balance_no_interest = loan_amount
+    total_interest = 0
+    total_repaid_with = 0
+    total_repaid_no = 0
+    salary = starting_salary
+
+    for yr in range(writeoff_years + 1):
+        if yr == 0:
+            results.append({
+                "year": 0,
+                "balance_with_interest": loan_amount,
+                "balance_no_interest": loan_amount,
+                "total_interest_accrued": 0,
+                "repaid_with_interest": 0,
+                "repaid_no_interest": 0,
+                "total_repaid_with": 0,
+                "total_repaid_no": 0,
+            })
+            continue
+
+        annual_repayment = max(0, (salary - threshold) * repayment_rate) if salary > threshold else 0
+
+        # WITH INTEREST: repayment first, then interest (UK methodology)
+        actual_with = min(annual_repayment, balance_with_interest)
+        balance_after_repayment = max(0, balance_with_interest - actual_with)
+        interest_charge = balance_after_repayment * interest_rate
+        balance_with_interest = balance_after_repayment + interest_charge
+        total_interest += interest_charge
+        total_repaid_with += actual_with
+
+        # WITHOUT INTEREST: just repayment
+        actual_no = min(annual_repayment, balance_no_interest)
+        balance_no_interest = max(0, balance_no_interest - actual_no)
+        total_repaid_no += actual_no
+
+        results.append({
+            "year": yr,
+            "balance_with_interest": balance_with_interest,
+            "balance_no_interest": balance_no_interest,
+            "total_interest_accrued": total_interest,
+            "repaid_with_interest": actual_with,
+            "repaid_no_interest": actual_no,
+            "total_repaid_with": total_repaid_with,
+            "total_repaid_no": total_repaid_no,
+        })
+
+        salary *= (1 + salary_growth_rate)
+
+    df = pd.DataFrame(results)
+    df["plan"] = plan
+    df["interest_rate"] = interest_rate
+
+    return df
+
+
+# OBR RPI forecasts (from UK Autumn Budget dashboard)
+RPI_FORECASTS = {
+    2024: 0.0331,
+    2025: 0.0416,
+    2026: 0.0308,
+    2027: 0.0300,
+    2028: 0.0283,
+    2029: 0.0283,
+}
+RPI_LONG_TERM = 0.0239  # 2.39% for years beyond 2029
+
+
+def get_rpi_rate(calendar_year: int) -> float:
+    """Get RPI inflation rate for a given calendar year."""
+    return RPI_FORECASTS.get(calendar_year, RPI_LONG_TERM)
+
+
+def generate_policy_comparison_data(
+    starting_salary: float = 50_000,
+    loan_amount: float = 45_000,
+    salary_growth_rate: float = 0.03,
+    plan: str = "plan2",
+    year: int = 2026,
+    interest_rate_override: float = None,
+) -> pd.DataFrame:
+    """Compare lifetime repayments under Autumn Budget 2025 vs RPI-linked threshold.
+
+    Models the Autumn Budget 2025 policy which:
+    - Freezes Plan 2 threshold at £29,385 for 2027-2029
+    - Resumes RPI uprating from 2030
+
+    Baseline counterfactual assumes RPI uprating every year from 2027.
+
+    Args:
+        starting_salary: Starting annual salary.
+        loan_amount: Initial loan balance.
+        salary_growth_rate: Annual salary growth rate.
+        plan: Student loan plan.
+        year: Tax year for parameter lookup (starting year).
+        interest_rate_override: Custom interest rate (overrides plan default if set).
+
+    Returns:
+        DataFrame comparing Autumn Budget (frozen 2027-2029) vs RPI-linked scenarios.
+    """
+    params = get_tax_parameters(year)
+
+    plan_config = {
+        "plan1": {
+            "threshold": params["sl_plan1_threshold"],
+            "interest": params["sl_plan1_interest"],
+            "writeoff": params["sl_plan1_writeoff"],
+        },
+        "plan2": {
+            "threshold": params["sl_plan2_threshold"],
+            "interest": (params["sl_plan2_interest_min"] + params["sl_plan2_interest_max"]) / 2,
+            "writeoff": params["sl_plan2_writeoff"],
+        },
+        "plan4": {
+            "threshold": params["sl_plan4_threshold"],
+            "interest": params["sl_plan4_interest"],
+            "writeoff": params["sl_plan4_writeoff"],
+        },
+        "plan5": {
+            "threshold": params["sl_plan5_threshold"],
+            "interest": params["sl_plan5_interest"],
+            "writeoff": params["sl_plan5_writeoff"],
+        },
+    }
+
+    config = plan_config.get(plan, plan_config["plan2"])
+    base_threshold = config["threshold"]  # £29,385 for Plan 2 in 2026
+    interest_rate = interest_rate_override if interest_rate_override is not None else config["interest"]
+    writeoff_years = config["writeoff"]
+    repayment_rate = params["sl_repayment_rate"]
+
+    results = []
+    balance_frozen = loan_amount
+    balance_indexed = loan_amount
+    total_repaid_frozen = 0
+    total_repaid_indexed = 0
+    salary = starting_salary
+
+    # Track thresholds separately for each scenario
+    threshold_frozen = base_threshold  # Autumn Budget scenario
+    threshold_indexed = base_threshold  # Baseline counterfactual (RPI-linked)
+
+    for yr in range(writeoff_years + 1):
+        # Calculate calendar year for this repayment year
+        calendar_year = year + yr
+
+        if yr == 0:
+            results.append({
+                "year": 0,
+                "calendar_year": calendar_year,
+                "annual_repaid_frozen": 0,
+                "annual_repaid_indexed": 0,
+                "annual_impact": 0,
+                "total_repaid_frozen": 0,
+                "total_repaid_indexed": 0,
+                "cumulative_impact": 0,
+                "threshold_frozen": base_threshold,
+                "threshold_indexed": base_threshold,
+                "balance_frozen": loan_amount,
+                "balance_indexed": loan_amount,
+            })
+            continue
+
+        # Get RPI rate for this calendar year
+        rpi_rate = get_rpi_rate(calendar_year)
+
+        # AUTUMN BUDGET SCENARIO (frozen 2027-2029, RPI resumes 2030+)
+        # Threshold stays frozen during 2027-2029, then grows with RPI from 2030
+        if calendar_year >= 2030:
+            threshold_frozen *= (1 + rpi_rate)
+
+        repay_frozen = max(0, (salary - threshold_frozen) * repayment_rate) if salary > threshold_frozen else 0
+        actual_frozen = min(repay_frozen, balance_frozen)
+        balance_after_frozen = max(0, balance_frozen - actual_frozen)
+        balance_frozen = balance_after_frozen + (balance_after_frozen * interest_rate)
+        total_repaid_frozen += actual_frozen
+
+        # BASELINE COUNTERFACTUAL (RPI-linked every year from 2027+)
+        if calendar_year >= 2027:
+            threshold_indexed *= (1 + rpi_rate)
+
+        repay_indexed = max(0, (salary - threshold_indexed) * repayment_rate) if salary > threshold_indexed else 0
+        actual_indexed = min(repay_indexed, balance_indexed)
+        balance_after_indexed = max(0, balance_indexed - actual_indexed)
+        balance_indexed = balance_after_indexed + (balance_after_indexed * interest_rate)
+        total_repaid_indexed += actual_indexed
+
+        # Annual impact = difference in repayment this year
+        annual_impact = actual_frozen - actual_indexed
+
+        results.append({
+            "year": yr,
+            "calendar_year": calendar_year,
+            "annual_repaid_frozen": actual_frozen,
+            "annual_repaid_indexed": actual_indexed,
+            "annual_impact": annual_impact,
+            "total_repaid_frozen": total_repaid_frozen,
+            "total_repaid_indexed": total_repaid_indexed,
+            "cumulative_impact": total_repaid_frozen - total_repaid_indexed,
+            "threshold_frozen": threshold_frozen,
+            "threshold_indexed": threshold_indexed,
+            "balance_frozen": balance_frozen,
+            "balance_indexed": balance_indexed,
+        })
+
+        salary *= (1 + salary_growth_rate)
+
+        # Stop if both loans are fully paid off (balance reached 0 before interest)
+        if balance_after_frozen <= 0 and balance_after_indexed <= 0:
+            break
+
+    df = pd.DataFrame(results)
+    df["plan"] = plan
+
+    return df
+
+
+def export_lifetime_analysis_csv(
+    starting_salaries: list[int] = None,
+    loan_amounts: list[int] = None,
+    plans: list[str] = None,
+    year: int = 2026,
+) -> str:
+    """Export lifetime repayment analysis for multiple scenarios.
+
+    Args:
+        starting_salaries: List of starting salaries to model.
+        loan_amounts: List of loan amounts to model.
+        plans: List of plans to model.
+        year: Tax year for parameters.
+
+    Returns:
+        Path to saved CSV file.
+    """
+    if starting_salaries is None:
+        starting_salaries = [30000, 40000, 50000, 60000, 80000]
+    if loan_amounts is None:
+        loan_amounts = [30000, 45000, 60000]
+    if plans is None:
+        plans = ["plan1", "plan2", "plan4", "plan5"]
+
+    all_data = []
+
+    for plan in plans:
+        for salary in starting_salaries:
+            for loan in loan_amounts:
+                df = generate_lifetime_repayment_data(
+                    starting_salary=salary,
+                    loan_amount=loan,
+                    plan=plan,
+                    year=year,
+                )
+                all_data.append(df)
+
+    combined = pd.concat(all_data, ignore_index=True)
+    output_path = "public/data/student_loan_lifetime_analysis.csv"
+    combined.to_csv(output_path, index=False)
+    print(f"Exported lifetime analysis to {output_path}")
+    return output_path
+
+
 def calculate_lifetime_additional_deductions(
     starting_salary: float = 30_000,
     salary_growth_rate: float = 0.03,
@@ -543,10 +1035,14 @@ if __name__ == "__main__":
     # Export parameters for all years first
     export_parameters_csv()
 
+    # Export lifetime analysis data
+    print("\n=== Generating Lifetime Analysis Data ===")
+    export_lifetime_analysis_csv()
+
     # Load and display parameters
     year = 2026
     params = get_tax_parameters(year)
-    print(f"=== {year} Tax Parameters (from PE UK) ===")
+    print(f"\n=== {year} Tax Parameters (from PE UK) ===")
     print(f"Personal allowance: £{params['personal_allowance']:,}")
     print(f"Basic rate: {params['basic_rate']*100:.0f}%")
     print(f"Higher rate: {params['higher_rate']*100:.0f}%")
@@ -560,6 +1056,20 @@ if __name__ == "__main__":
     print(f"NI higher rate: {params['ni_higher_rate']*100:.0f}%")
     print(f"\nStudent loan Plan 2 threshold: £{params['sl_plan2_threshold']:,}")
     print(f"Student loan repayment rate: {params['sl_repayment_rate']*100:.0f}%")
+
+    # Display interest rate info
+    print(f"\n=== Student Loan Interest Rates ===")
+    print(f"Plan 1 interest: {params['sl_plan1_interest']*100:.1f}%")
+    print(f"Plan 2 interest (min): {params['sl_plan2_interest_min']*100:.1f}%")
+    print(f"Plan 2 interest (max): {params['sl_plan2_interest_max']*100:.1f}%")
+    print(f"Plan 4 interest: {params['sl_plan4_interest']*100:.1f}%")
+    print(f"Plan 5 interest: {params['sl_plan5_interest']*100:.1f}%")
+
+    print(f"\n=== Write-off Periods ===")
+    print(f"Plan 1: {params['sl_plan1_writeoff']} years")
+    print(f"Plan 2: {params['sl_plan2_writeoff']} years")
+    print(f"Plan 4: {params['sl_plan4_writeoff']} years")
+    print(f"Plan 5: {params['sl_plan5_writeoff']} years")
 
     # Simple comparison
     simple_df = generate_simple_comparison(year=year)

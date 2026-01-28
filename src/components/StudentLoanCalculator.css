@@ -1,850 +1,897 @@
-/* Student Loan Calculator */
+/* Narrative Layout - NYT Style */
 
-.student-loan-calculator {
-  width: 100%;
-  font-family: "Roboto", sans-serif;
-  color: #344054;
-  font-size: 1rem;
-}
-
-/* Header */
-.student-loan-calculator .lifecycle-header {
-  padding: 0 0 20px;
-  border-bottom: 1px solid #e2e8f0;
-  margin-bottom: 24px;
-}
-
-.student-loan-calculator .lifecycle-header-content h2 {
-  margin: 0 0 8px 0;
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.student-loan-calculator .lifecycle-subtitle {
-  margin: 0;
-  color: #64748b;
-  font-size: 1.05rem;
-}
-
-/* Placeholder box */
-.placeholder-box {
-  background: #f8fafc;
-  border: 2px dashed #e2e8f0;
-  border-radius: 16px;
-  padding: 60px 40px;
-  text-align: center;
-  min-height: 400px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.placeholder-icon {
-  font-size: 3rem;
-  margin-bottom: 20px;
-}
-
-.placeholder-box h3 {
-  margin: 0 0 12px 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.placeholder-box p {
-  margin: 0;
-  font-size: 1rem;
-  color: #64748b;
-  max-width: 400px;
-  line-height: 1.6;
-}
-
-/* About section */
-.about-section {
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 24px;
-}
-
-.about-section .policy-box {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-left: 4px solid #319795;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
-}
-
-.about-section .policy-box h4 {
-  margin: 0 0 8px 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.about-section .policy-box p {
-  margin: 0 0 16px 0;
-  font-size: 1rem;
-  color: #475569;
+.narrative-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px 32px 24px;
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #1a1a1a;
   line-height: 1.7;
 }
 
-.about-section .policy-box p:last-child {
-  margin-bottom: 0;
+/* Smooth scroll behavior for navigation clicks */
+html {
+  scroll-behavior: smooth;
 }
 
-.about-section .policy-box .parameters {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
-  font-size: 0.8rem;
-  color: #64748b;
+/* Hero Section */
+.narrative-hero {
+  margin-bottom: 32px;
+  padding-bottom: 0;
 }
 
-.about-section .question-box {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-top: 16px;
+.narrative-hero h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 20px 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1a1a1a;
+  letter-spacing: -0.02em;
 }
 
-.about-section .question-box h4 {
-  margin: 0 0 12px 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.about-section .question-box p {
-  margin: 0 0 10px 0;
-  font-size: 0.85rem;
-  color: #475569;
-  line-height: 1.5;
-}
-
-.about-section .question-box p:last-child {
-  margin-bottom: 0;
-}
-
-.about-section p {
-  margin: 0 0 12px 0;
+.narrative-lead {
+  font-size: 1.25rem;
   line-height: 1.6;
-  color: #475569;
-  font-size: 0.9rem;
+  color: #4a4a4a;
+  margin: 0;
 }
 
-.about-section p:last-child {
-  margin-bottom: 0;
+.narrative-lead strong {
+  color: #319795;
+  font-weight: 600;
 }
 
-.about-section .parameters {
-  font-size: 0.8rem;
+/* Controls Panel */
+.controls-panel {
+  margin: 0 0 48px 0;
+  padding: 32px;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.controls-intro {
+  font-size: 0.95rem;
   color: #64748b;
+  margin: 0 0 20px 0;
 }
 
-.student-loan-calculator .lifecycle-layout {
+.controls-grid {
   display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 32px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  align-items: start;
 }
 
-@media (max-width: 900px) {
-  .student-loan-calculator .lifecycle-layout {
+@media (max-width: 1000px) {
+  .controls-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .controls-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .controls-grid {
     grid-template-columns: 1fr;
   }
 }
 
-/* Controls sidebar */
-.student-loan-calculator .lifecycle-controls {
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 20px;
-  height: fit-content;
-  position: sticky;
-  top: 20px;
+.control-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.student-loan-calculator .lifecycle-controls h3 {
-  margin: 0 0 20px 0;
-  font-size: 1rem;
+.control-item > label:first-child {
+  font-size: 0.7rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
 }
 
-.student-loan-calculator .control-group {
-  margin-bottom: 16px;
+.control-item select,
+.control-item .salary-input-wrapper,
+.control-item .age-input,
+.control-item .checkbox-label {
+  height: 48px;
+  box-sizing: border-box;
 }
 
-.student-loan-calculator .control-group label {
-  display: block;
-  font-size: 0.85rem;
+.control-item select {
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
   font-weight: 500;
-  color: #475569;
-  margin-bottom: 6px;
-  cursor: help;
+  background: white;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.student-loan-calculator .slider-container {
+.control-item select:hover {
+  border-color: #cbd5e1;
+}
+
+.control-item select:focus {
+  outline: none;
+  border-color: #319795;
+  box-shadow: 0 0 0 3px rgba(49, 151, 149, 0.1);
+}
+
+.salary-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.15s ease;
 }
 
-.student-loan-calculator .slider-container input[type="range"] {
+.salary-input-wrapper:hover {
+  border-color: #cbd5e1;
+}
+
+.salary-input-wrapper:focus-within {
+  border-color: #319795;
+  box-shadow: 0 0 0 3px rgba(49, 151, 149, 0.1);
+}
+
+.currency-symbol {
+  padding: 0 14px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-right: 1px solid #e2e8f0;
+}
+
+.salary-input-wrapper input {
   flex: 1;
-  height: 6px;
-  background: #e2e8f0;
-  border-radius: 3px;
-  appearance: none;
-  cursor: pointer;
-}
-
-.student-loan-calculator .slider-container input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  background: #319795;
-  border-radius: 50%;
-  cursor: pointer;
-  transition:
-    transform 0.15s,
-    box-shadow 0.15s;
-}
-
-.student-loan-calculator .slider-container input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 0 4px rgba(49, 151, 149, 0.2);
-}
-
-.student-loan-calculator .slider-container input[type="range"]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  background: #319795;
+  padding: 0 14px;
+  height: 100%;
   border: none;
-  border-radius: 50%;
-  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1e293b;
+  background: transparent;
+  outline: none;
+  min-width: 0;
 }
 
-.student-loan-calculator .slider-value {
-  min-width: 80px;
+.control-hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.3;
+  margin-top: 4px;
+}
+
+/* Info icon with tooltip */
+.label-with-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.info-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 600;
+  font-style: italic;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  transition: all 0.15s ease;
+  font-family: Georgia, serif;
+  text-transform: lowercase;
+}
+
+.info-icon:hover {
+  background: #319795;
+  color: white;
+}
+
+.info-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  padding: 12px 14px;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.5;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 100;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.info-tooltip strong {
+  color: white;
+  font-weight: 600;
+}
+
+.info-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1e293b;
+}
+
+.info-icon-wrapper:hover .info-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.info-icon.light {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.info-icon.light:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 0 14px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.checkbox-label:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #319795;
+  cursor: pointer;
+  margin: 0;
+}
+
+.checkbox-label input[type="checkbox"]:checked ~ span {
+  color: #319795;
+  font-weight: 600;
+}
+
+.checkbox-label span {
+  white-space: nowrap;
+}
+
+.age-input {
+  width: 100%;
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  background: white;
+  color: #1e293b;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.age-input:hover {
+  border-color: #cbd5e1;
+}
+
+.age-input:focus {
+  outline: none;
+  border-color: #319795;
+  box-shadow: 0 0 0 3px rgba(49, 151, 149, 0.1);
+}
+
+/* Sections */
+.narrative-section {
+  margin-bottom: 48px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid #e5e5e5;
+  scroll-margin-top: 24px;
+}
+
+.narrative-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.narrative-section h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  letter-spacing: -0.01em;
+}
+
+.narrative-section p {
+  font-size: 1.1rem;
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.narrative-section p:last-child {
+  margin-bottom: 0;
+}
+
+/* API loading/error states */
+.api-loading {
+  padding: 12px 16px;
+  background: #e6fffa;
+  border-left: 4px solid #319795;
+  color: #234e52;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  border-radius: 4px;
+}
+
+.api-error {
+  padding: 12px 16px;
+  background: #fff5f5;
+  border-left: 4px solid #e53e3e;
+  color: #742a2a;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  border-radius: 4px;
+}
+
+/* Chart controls box */
+.chart-controls-box {
+  display: flex;
+  gap: 24px;
+  padding: 16px 20px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.chart-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chart-control label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #319795;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  color: #475569;
 }
 
-.year-select {
-  width: 100%;
+.chart-control input,
+.chart-control select {
   padding: 8px 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 0.85rem;
-  background: #fff;
-  cursor: pointer;
+  font-size: 0.95rem;
+  background: white;
+  min-width: 120px;
 }
 
-.year-select:focus {
+.chart-control input:focus,
+.chart-control select:focus {
   outline: none;
   border-color: #319795;
   box-shadow: 0 0 0 2px rgba(49, 151, 149, 0.2);
 }
 
-/* Plan description */
-.plan-description {
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 6px;
-  line-height: 1.4;
-}
-
-/* Postgraduate toggle */
-.postgrad-toggle {
-  margin-top: 16px;
-  padding: 12px 14px;
-  background: #fff;
+.chart-control .control-value {
+  padding: 8px 12px;
+  background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #319795;
+}
+
+@media (max-width: 600px) {
+  .chart-controls-box {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .chart-control input,
+  .chart-control select {
+    width: 100%;
+  }
+}
+
+/* Toggle switch */
+.toggle-switch {
+  display: flex;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toggle-switch button {
+  padding: 8px 16px;
+  border: none;
+  background: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
-.postgrad-toggle:hover {
-  border-color: #cbd5e1;
+.toggle-switch button:first-child {
+  border-right: 1px solid #cbd5e1;
+}
+
+.toggle-switch button:hover {
+  background: #f1f5f9;
+}
+
+.toggle-switch button.active {
+  background: #319795;
+  color: white;
+}
+
+.toggle-switch button.active:hover {
+  background: #2c7a7b;
+}
+
+/* Expandable section */
+.expandable-section {
+  margin-top: 8px;
+}
+
+.expandable-section summary {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #319795;
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.expandable-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.expandable-section summary::before {
+  content: '▸';
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.expandable-section[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.expandable-section summary:hover {
+  text-decoration: underline;
+}
+
+.expandable-section p {
+  margin: 8px 0 0 0;
+  font-size: 1.1rem;
+  color: #333;
+  line-height: 1.7;
+}
+
+.narrative-section p strong {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Charts */
+.narrative-chart-container {
+  margin: 24px -32px;
+  padding: 20px 24px 16px;
   background: #fafafa;
+  border-radius: 8px;
 }
 
-.postgrad-toggle.active {
-  border-color: #319795;
-  background: #f0fdfa;
+@media (min-width: 768px) {
+  .narrative-chart-container {
+    margin: 24px -60px;
+    padding: 24px 60px 16px;
+  }
 }
 
-.postgrad-toggle-header {
+@media (min-width: 1024px) {
+  .narrative-chart-container {
+    margin: 24px -80px;
+    padding: 24px 80px 16px;
+  }
+}
+
+.narrative-chart {
+  width: 100%;
+  min-height: 400px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.legend-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.toggle-switch {
-  width: 36px;
-  height: 20px;
-  background: #e2e8f0;
-  border-radius: 10px;
-  position: relative;
-  transition: background 0.2s ease;
-  flex-shrink: 0;
-}
-
-.toggle-switch.on {
-  background: #319795;
-}
-
-.toggle-knob {
-  width: 16px;
-  height: 16px;
-  background: #fff;
-  border-radius: 50%;
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  transition: transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-}
-
-.toggle-switch.on .toggle-knob {
-  transform: translateX(16px);
-}
-
-.postgrad-toggle-label {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #475569;
-  transition: color 0.2s ease;
-}
-
-.postgrad-toggle.active .postgrad-toggle-label {
-  color: #319795;
-  font-weight: 600;
-}
-
-.postgrad-toggle-detail {
-  margin-top: 6px;
-  margin-left: 46px;
+  gap: 6px;
   font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-/* Calculate button */
-.calculate-button {
-  width: 100%;
-  padding: 12px 20px;
-  margin-top: 20px;
-  background: linear-gradient(135deg, #319795 0%, #2c7a7b 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.calculate-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(49, 151, 149, 0.3);
-}
-
-.calculate-button:active {
-  transform: translateY(0);
-}
-
-/* Loan status badge */
-.loan-status {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.status-badge.with-loan {
-  background: rgba(49, 151, 149, 0.1);
-  color: #319795;
-}
-
-.status-badge.no-loan {
-  background: #f1f5f9;
+  font-weight: 500;
   color: #64748b;
 }
 
-.status-note {
-  margin: 8px 0 0 0;
-  font-size: 0.75rem;
-  color: #94a3b8;
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
 }
 
-/* Breakdown section */
-.breakdown-section {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+.legend-line {
+  width: 20px;
+  height: 3px;
+  background: #344054;
 }
 
-.breakdown-section h4 {
-  margin: 0 0 12px 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #475569;
+.legend-line.solid {
+  background: #344054;
 }
 
-.breakdown-table {
-  width: 100%;
-  font-size: 0.8rem;
-  border-collapse: collapse;
+.legend-line.dashed {
+  background: repeating-linear-gradient(
+    to right,
+    #344054 0px,
+    #344054 4px,
+    transparent 4px,
+    transparent 7px
+  );
 }
 
-.breakdown-table td {
-  padding: 6px 0;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.breakdown-table td:last-child {
-  text-align: right;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.breakdown-table .negative {
-  color: #ef4444;
-}
-
-.breakdown-table .positive {
-  color: #22c55e;
-}
-
-.breakdown-table .total-row {
-  border-top: 2px solid #e2e8f0;
-}
-
-.breakdown-table .total-row td {
-  padding-top: 10px;
-  font-weight: 600;
-}
-
-/* Main content */
-.student-loan-calculator .lifecycle-main {
-  min-width: 0;
-}
-
-/* Deductions box */
-.deductions-box {
+/* Tax Position Box - Unified Section */
+.tax-position-box {
+  margin: 24px 0 0;
+  padding: 24px;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.deductions-header {
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.status-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.deductions-header .status-badge {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  background: linear-gradient(135deg, #319795 0%, #2c7a7b 100%);
-  color: white;
-}
-
-.deductions-header .status-note {
-  font-size: 0.85rem;
-  color: #64748b;
-}
-
-.deductions-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-}
-
-.deduction-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.deduction-label {
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.deduction-value {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1e293b;
-  font-variant-numeric: tabular-nums;
-}
-
-.deduction-value.negative {
-  color: #ef4444;
-}
-
-.deduction-value.positive {
-  color: #22c55e;
-}
-
-.deduction-item.total {
-  padding-left: 16px;
-  border-left: 2px solid #319795;
-}
-
-@media (max-width: 800px) {
-  .deductions-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .deduction-item.total {
-    grid-column: span 3;
-    padding-left: 0;
-    border-left: none;
-    padding-top: 12px;
-    border-top: 1px solid #e2e8f0;
-  }
-}
-
-@media (max-width: 500px) {
-  .deductions-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .deduction-item.total {
-    grid-column: span 2;
-  }
-
-  .status-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-}
-
-/* Summary cards */
-.student-loan-calculator .lifecycle-summary {
+/* Marginal Rate Row */
+.marginal-rate-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }
 
-@media (max-width: 700px) {
-  .student-loan-calculator .lifecycle-summary {
+.marginal-rate-item {
+  text-align: center;
+  padding: 20px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.marginal-rate-item.highlight {
+  background: #319795;
+  color: white;
+}
+
+.marginal-rate-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 8px;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+.marginal-rate-item.highlight .marginal-rate-value {
+  color: white;
+}
+
+.marginal-rate-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.marginal-rate-item.highlight .marginal-rate-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Deductions Row */
+.deductions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 24px 0;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.deductions-column h4 {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+}
+
+.deduction-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.deduction-item span:first-child {
+  font-weight: 500;
+}
+
+.deduction-item span:last-child {
+  font-weight: 600;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+.deduction-item.total {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+
+.deduction-item.net {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: #f0fdfa;
+  border-radius: 6px;
+}
+
+.deduction-item.net span:first-child {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.deduction-item .net-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #319795;
+}
+
+/* Summary Row */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.summary-stat {
+  text-align: center;
+}
+
+.summary-stat-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.summary-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  .marginal-rate-row {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .deductions-row {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .summary-row {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-.student-loan-calculator .summary-item {
-  background: white;
-  border: 1px solid #e2e8f0;
+@media (max-width: 500px) {
+  .tax-position-box {
+    padding: 20px 16px;
+  }
+
+  .marginal-rate-value {
+    font-size: 1.75rem;
+  }
+
+  .summary-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+/* Footer / Methodology */
+.narrative-footer {
+  margin-top: 48px;
+  padding-top: 24px;
+}
+
+.narrative-footer h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #1a1a1a;
+}
+
+.narrative-footer p {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+}
+
+.narrative-footer .source-link {
+  margin-top: 16px;
+}
+
+.narrative-footer a {
+  color: #319795;
+  text-decoration: none;
+}
+
+.narrative-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Learn More Section */
+.learn-more-section {
+  margin-top: 48px;
+  padding: 28px;
+  background: #f8fafc;
   border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-}
-
-.student-loan-calculator .summary-item.highlighted {
-  background: linear-gradient(135deg, #319795 0%, #2c7a7b 100%);
-  border: none;
-  color: white;
-}
-
-.student-loan-calculator .summary-item.highlighted .summary-label {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.student-loan-calculator .summary-item.highlighted .summary-value {
-  color: white;
-}
-
-.student-loan-calculator .summary-label {
-  font-size: 0.85rem;
-  color: #64748b;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-/* Info icon with tooltip */
-.info-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  color: #9CA3AF;
-  cursor: help;
-  position: relative;
-}
-
-.student-loan-calculator .summary-item.highlighted .info-icon {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.info-icon:hover {
-  color: #64748b;
-}
-
-.student-loan-calculator .summary-item.highlighted .info-icon:hover {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.info-icon::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: #1e293b;
-  color: white;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 400;
-  line-height: 1.5;
-  white-space: normal;
-  width: 220px;
-  text-align: left;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s, visibility 0.2s;
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  pointer-events: none;
-}
-
-.info-icon::before {
-  content: '';
-  position: absolute;
-  bottom: calc(100% + 2px);
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: #1e293b;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s, visibility 0.2s;
-  z-index: 100;
-}
-
-.info-icon:hover::after,
-.info-icon:hover::before {
-  opacity: 1;
-  visibility: visible;
-}
-
-.student-loan-calculator .summary-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.student-loan-calculator .summary-value.positive {
-  color: #22c55e;
-}
-
-.student-loan-calculator .summary-value.negative {
-  color: #ef4444;
-}
-
-/* Chart container */
-.student-loan-calculator .chart-container {
-  background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
 }
 
-.chart-title {
-  margin: 0 0 8px 0;
+.learn-more-section h3 {
   font-size: 1.1rem;
   font-weight: 600;
   color: #1e293b;
-}
-
-.chart-subtitle {
   margin: 0 0 20px 0;
+}
+
+.learn-more-content {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .learn-more-content {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+.learn-more-item {
+  padding: 0;
+}
+
+.learn-more-item h4 {
   font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 8px 0;
+}
+
+.learn-more-item p {
+  font-size: 0.9rem;
   color: #64748b;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin: 0;
 }
 
-.student-loan-calculator .chart {
-  width: 100%;
-  min-height: 400px;
+.learn-more-item a {
+  color: #319795;
+  text-decoration: none;
 }
 
-.student-loan-calculator .chart.chart-short {
-  min-height: 300px;
+.learn-more-item a:hover {
+  text-decoration: underline;
 }
 
-/* Cohort selector */
-.cohort-selector {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.cohort-selector label {
-  font-size: 0.85rem;
-  color: #64748b;
-}
-
-.cohort-selector select {
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  background: #fff;
-  cursor: pointer;
-}
-
-.cohort-selector select:focus {
-  outline: none;
-  border-color: #319795;
-  box-shadow: 0 0 0 2px rgba(49, 151, 149, 0.2);
-}
-
-/* Chart styles */
-.student-loan-calculator .chart svg {
+/* Chart styling */
+.narrative-chart svg {
   overflow: visible;
 }
 
-.student-loan-calculator .chart .grid line {
-  stroke: #E2E8F0;
+.narrative-chart .grid line {
+  stroke: #e5e5e5;
   stroke-dasharray: 4, 4;
 }
 
-.student-loan-calculator .chart .grid .domain {
+.narrative-chart .grid .domain {
   display: none;
 }
 
-.student-loan-calculator .chart .axis text {
-  fill: #6b7280;
+.narrative-chart .axis text {
+  fill: #666;
   font-size: 11px;
 }
 
-.student-loan-calculator .chart .axis path,
-.student-loan-calculator .chart .axis line {
-  stroke: #E2E8F0;
-}
-
-/* Legend */
-.student-loan-calculator .legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  justify-content: center;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.student-loan-calculator .legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.student-loan-calculator .legend-color {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-}
-
-/* Thresholds table section */
-.thresholds-section {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-}
-
-.thresholds-section h3 {
-  margin: 0 0 16px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.thresholds-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.thresholds-table th {
-  text-align: left;
-  padding: 12px 16px;
-  background: #f8fafc;
-  font-weight: 600;
-  color: #475569;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.thresholds-table th:not(:first-child) {
-  text-align: center;
-}
-
-.thresholds-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-
-.thresholds-table td:not(:first-child) {
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.threshold-note {
-  display: block;
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin-top: 2px;
-}
-
-.diff-cell {
-  color: #319795;
-  font-weight: 600;
+.narrative-chart .axis path,
+.narrative-chart .axis line {
+  stroke: #d4d4d4;
 }
 
 /* Tooltip */
-.student-loan-calculator .lifecycle-tooltip {
+.lifecycle-tooltip {
   position: fixed;
   pointer-events: none;
   background: rgba(255, 255, 255, 0.98);
@@ -852,16 +899,14 @@
   border-radius: 8px;
   padding: 12px;
   font-size: 0.85rem;
-  box-shadow:
-    0 10px 25px -5px rgba(0, 0, 0, 0.1),
-    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   opacity: 0;
   transition: opacity 0.15s;
   z-index: 1000;
   max-width: 280px;
 }
 
-.student-loan-calculator .tooltip-title {
+.tooltip-title {
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 8px;
@@ -869,59 +914,375 @@
   border-bottom: 1px solid #f1f5f9;
 }
 
-.student-loan-calculator .tooltip-row {
+.tooltip-row {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   padding: 3px 0;
 }
 
-.student-loan-calculator .tooltip-value {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.student-loan-calculator .tooltip-diff {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px dashed #e2e8f0;
-}
-
-.student-loan-calculator .tooltip-section {
+.tooltip-section {
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid #f1f5f9;
 }
 
-.student-loan-calculator .tooltip-total {
+.tooltip-total {
   margin-top: 4px;
   padding-top: 4px;
 }
 
-/* Responsive */
-@media (max-width: 900px) {
-  .student-loan-calculator .lifecycle-controls {
-    position: static;
+/* Deductions Breakdown */
+.deductions-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+@media (max-width: 768px) {
+  .deductions-comparison {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 480px) {
-  .student-loan-calculator .slider-container {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
+.deductions-box {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.deductions-box.no-loan {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.deductions-box h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.deductions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.deduction-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  padding: 4px 0;
+}
+
+.deduction-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.deduction-value {
+  font-weight: 600;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+.deduction-row.total {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.deduction-row.total .deduction-label,
+.deduction-row.total .deduction-value {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.deduction-row.net {
+  margin-top: 8px;
+  padding: 12px;
+  background: #f0fdfa;
+  border-radius: 8px;
+  border: 1px solid #99f6e4;
+}
+
+.deduction-row.net .deduction-label {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.deduction-value.highlight {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #319795;
+}
+
+/* Deductions Summary */
+.deductions-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .deductions-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .deductions-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  padding: 16px 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.summary-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.summary-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scroll Spy Navigation */
+.scroll-spy {
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 100;
+}
+
+.scroll-spy-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.scroll-spy-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #9ca3af;
+  text-align: right;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 100px;
+}
+
+.scroll-spy-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #d1d5db;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.scroll-spy-item:hover .scroll-spy-label {
+  color: #64748b;
+}
+
+.scroll-spy-item:hover .scroll-spy-dot {
+  background: #9ca3af;
+  transform: scale(1.2);
+}
+
+.scroll-spy-item.active .scroll-spy-label {
+  color: #319795;
+  font-weight: 600;
+}
+
+.scroll-spy-item.active .scroll-spy-dot {
+  background: #319795;
+  transform: scale(1.3);
+}
+
+@media (max-width: 1200px) {
+  .scroll-spy {
+    right: 12px;
   }
 
-  .student-loan-calculator .slider-value {
-    text-align: left;
+  .scroll-spy-label {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .scroll-spy {
+    display: none;
+  }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .narrative-container {
+    padding: 24px 16px 16px;
   }
 
-  .thresholds-table {
-    font-size: 0.75rem;
+  .narrative-hero h1 {
+    font-size: 1.75rem;
   }
 
-  .thresholds-table th,
-  .thresholds-table td {
-    padding: 8px;
+  .narrative-lead {
+    font-size: 1.1rem;
   }
+
+  .narrative-section h2 {
+    font-size: 1.25rem;
+  }
+
+  .narrative-section p {
+    font-size: 1rem;
+  }
+
+  .callout-number {
+    font-size: 2rem;
+  }
+
+  .narrative-chart {
+    min-height: 300px;
+  }
+
+  .deductions-box {
+    padding: 16px;
+  }
+
+  .summary-value {
+    font-size: 1.25rem;
+  }
+}
+
+/* Lifetime, Interest, Combined, and Policy Summary Sections */
+.lifetime-summary,
+.interest-summary,
+.combined-summary,
+.policy-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 24px 0;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.interest-summary {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 768px) {
+  .lifetime-summary,
+  .interest-summary,
+  .combined-summary,
+  .policy-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .lifetime-summary,
+  .interest-summary,
+  .policy-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Plan 2 Notice Box */
+.plan2-notice {
+  padding: 24px;
+  background: #fef3c7;
+  border-radius: 12px;
+  border: 1px solid #f59e0b;
+  text-align: left;
+}
+
+.plan2-notice p {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  color: #92400e;
+  line-height: 1.6;
+}
+
+.plan2-notice p:last-child {
+  margin-bottom: 0;
+}
+
+.plan2-notice strong {
+  color: #78350f;
+}
+
+/* Chart View Toggle */
+.chart-view-toggle {
+  display: inline-flex;
+  gap: 0;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.toggle-btn {
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.toggle-btn:hover {
+  color: #334155;
+}
+
+.toggle-btn.active {
+  background: white;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Chart legend with toggle */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }
