@@ -1118,7 +1118,7 @@ export default function StudentLoanCalculator() {
       <header className="narrative-hero">
         <h1>Student loan deductions calculator</h1>
         <p className="narrative-lead">
-          Analyse how student loan repayments affect marginal tax rates, take-home pay, lifetime costs, and the impact of the Autumn Budget 2025 threshold freeze.
+          Interactive tool to analyse student loan repayments, marginal tax rates, take-home pay, and lifetime costs for UK graduates.
         </p>
       </header>
 
