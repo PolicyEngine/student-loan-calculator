@@ -283,7 +283,7 @@ export default function StudentLoanCalculator() {
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedPlan, setSelectedPlan] = useState("plan2");
   const [showPostgrad, setShowPostgrad] = useState(false);
-  const [exampleSalary, setExampleSalary] = useState(50000);
+  const [exampleSalary, setExampleSalary] = useState(40000);
   const [age, setAge] = useState(28);
   const [loanAmount, setLoanAmount] = useState(40000);
   const [salaryGrowthRate, setSalaryGrowthRate] = useState(0.03);
@@ -320,17 +320,15 @@ export default function StudentLoanCalculator() {
     takeHome: useRef(null),
     byAge: useRef(null),
     lifetime: useRef(null),
-    policy: useRef(null),
   };
 
   const sections = [
     { id: "overview", label: "Overview" },
-    { id: "breakdown", label: "Breakdown" },
     { id: "marginalRates", label: "Marginal rates" },
+    { id: "breakdown", label: "Breakdown" },
     { id: "takeHome", label: "Take-home" },
     { id: "byAge", label: "By age" },
     { id: "lifetime", label: "Lifetime" },
-    { id: "policy", label: "Policy" },
   ];
 
   // Scroll spy effect
@@ -1124,23 +1122,43 @@ export default function StudentLoanCalculator() {
         </p>
       </header>
 
+      {/* Section 1: Overview */}
+      <section id="overview" ref={sectionRefs.overview} className="narrative-section">
+        <h2>Overview</h2>
+        <p>
+          This calculator analyses tax deductions for a single adult without children, excluding other forms of benefits or tax credits. It covers marginal deduction rates, tax position breakdowns, take-home pay comparisons, age-based analysis, and lifetime repayment projections.
+        </p>
+        <p>
+          In general, graduates with student loans repay 9% of income above a threshold. In {formatTaxYear(selectedYear)}, these are £{d3.format(",.0f")(params.slPlan1Threshold)} for Plan 1, £{d3.format(",.0f")(params.slPlan2Threshold)} for Plan 2, £{d3.format(",.0f")(params.slPlan4Threshold)} for Plan 4, and £{d3.format(",.0f")(params.slPlan5Threshold)} for Plan 5. These repayments are deducted alongside income tax and National Insurance, raising the marginal rate—the percentage taken from each additional pound earned. A basic rate taxpayer with a student loan faces a 37% marginal rate (compared to 28% without), rising to 51% for higher rate taxpayers (compared to 42%). <details className="expandable-section inline-details">
+            <summary>Which plan applies to me?</summary>
+            <ul className="plan-list">
+              <li><strong>Plan 1:</strong> Started before September 2012 in England or Wales, or studied in Scotland or Northern Ireland. Threshold: £{d3.format(",.0f")(params.slPlan1Threshold)}. Written off after 25 years.</li>
+              <li><strong>Plan 2:</strong> Started between September 2012 and July 2023 in England or Wales. Threshold: £{d3.format(",.0f")(params.slPlan2Threshold)}. Written off after 30 years.</li>
+              <li><strong>Plan 4:</strong> Scottish students who started after September 1998. Threshold: £{d3.format(",.0f")(params.slPlan4Threshold)}. Written off after 30 years.</li>
+              <li><strong>Plan 5:</strong> Started from August 2023 onwards in England. Threshold: £{d3.format(",.0f")(params.slPlan5Threshold)}. Written off after 40 years.</li>
+            </ul>
+          </details>
+        </p>
+        <p>
+          Additionally, the Autumn Budget 2025 froze Plan 2 thresholds for three years, increasing total repayments for affected borrowers. For detailed policy analysis, see the Autumn Budget 2025 analysis <a href="https://www.policyengine.org/uk/autumn-budget-2025" target="_blank" rel="noopener noreferrer">dashboard</a>.
+        </p>
+      </section>
+
       {/* Controls Panel */}
+      <p className="controls-intro">Enter borrower details to calculate repayments and deductions:</p>
       <section className="controls-panel">
-        <p className="controls-intro">Enter borrower details to calculate repayments and deductions.</p>
         <div className="controls-grid">
           <div className="control-item">
             <label>Gross income</label>
-            <div className="salary-input-wrapper">
-              <span className="currency-symbol">£</span>
-              <input
-                type="number"
-                value={exampleSalary}
-                onChange={(e) => setExampleSalary(Math.max(0, parseInt(e.target.value) || 0))}
-                min="0"
-                max="500000"
-                step="1000"
-              />
-            </div>
+            <select
+              value={exampleSalary}
+              onChange={(e) => setExampleSalary(parseInt(e.target.value))}
+              className="salary-select"
+            >
+              {Array.from({ length: 301 }, (_, i) => i * 500).map((val) => (
+                <option key={val} value={val}>£{d3.format(",.0f")(val)}</option>
+              ))}
+            </select>
           </div>
           <div className="control-item">
             <label>Age</label>
@@ -1269,21 +1287,30 @@ export default function StudentLoanCalculator() {
         </div>
       </section>
 
-      {/* Section 1: Overview */}
-      <section id="overview" ref={sectionRefs.overview} className="narrative-section">
-        <h2>Overview</h2>
+      {/* Chart 1: Marginal Rates */}
+      <section id="marginalRates" ref={sectionRefs.marginalRates} className="narrative-section">
+        <h2>Marginal deduction rates by income</h2>
         <p>
-          Graduates with student loans pay 9% of income above a threshold towards their loan. This is deducted from wages alongside income tax and National Insurance, increasing the marginal rate—the percentage taken from each additional pound earned. A basic rate taxpayer with a student loan faces a <strong>37%</strong> marginal rate (compared to 28% without a loan), rising to <strong>51%</strong> for higher rate taxpayers (compared to 42% without).
+          The following chart displays the composition of marginal deduction rates across the income distribution.
+          The stacked areas show income tax (teal), National Insurance (light teal), and student loan repayments (amber).
+          The solid line indicates the total rate with a student loan; the dashed line shows the rate without.
         </p>
+
+        <div className="narrative-chart-container">
+          <div ref={chartRef} className="narrative-chart"></div>
+          <div className="chart-legend">
+            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
+            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
+            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
+            {showPostgrad && <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>Postgrad loan</span></div>}
+            <div className="legend-item"><div className="legend-line solid"></div><span>Total rate (with loan)</span></div>
+            <div className="legend-item"><div className="legend-line dashed"></div><span>Total rate (no loan)</span></div>
+          </div>
+        </div>
+
         <p>
-          This calculator provides six analyses: (1) a <strong>tax position breakdown</strong> comparing deductions for workers with and without student loans; (2) <strong>marginal deduction rates by income</strong> showing how rates change across the income distribution; (3) <strong>take-home pay impact</strong> illustrating the annual cost of loan repayments; (4) <strong>marginal rates by age group</strong> comparing workers of different ages in a single tax year; (5) <strong>lifetime repayment analysis</strong> projecting total repayments over the loan term; and (6) <strong>Autumn Budget 2025 policy impact</strong> quantifying the effect of the Plan 2 threshold freeze.
+          {hasLoan ? `The student loan repayment band (amber) begins at £${d3.format(",.0f")(planThreshold)}—the ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} threshold. Above this level, each additional pound of earnings incurs the 9% repayment rate alongside income tax and NI. At £${d3.format(",.0f")(exampleSalary)}, a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan faces a marginal rate of ${(marginalWithLoan.totalRate * 100).toFixed(0)}%, compared to ${(marginalWithoutLoan.totalRate * 100).toFixed(0)}% without a loan.` : "Select a student loan plan above to see the impact of repayments on marginal rates."}
         </p>
-        <details className="expandable-section">
-          <summary>Which plan?</summary>
-          <p>
-            Plan 1 applies to those who started before September 2012 in England or Wales, or studied in Scotland or Northern Ireland. Plan 2 is for those who started between September 2012 and August 2023 in England or Wales. Plan 4 is for Scottish students, and Plan 5 applies from August 2023 onwards in England.
-          </p>
-        </details>
       </section>
 
       {/* Combined Tax Position Section */}
@@ -1453,32 +1480,6 @@ export default function StudentLoanCalculator() {
         </div>
       </section>
 
-      {/* Chart 1: Marginal Rates */}
-      <section id="marginalRates" ref={sectionRefs.marginalRates} className="narrative-section">
-        <h2>Marginal deduction rates by income</h2>
-        <p>
-          The following chart displays the composition of marginal deduction rates across the income distribution.
-          The stacked areas show income tax (teal), National Insurance (light teal), and student loan repayments (amber).
-          The solid line indicates the total rate with a student loan; the dashed line shows the rate without.
-        </p>
-
-        <div className="narrative-chart-container">
-          <div ref={chartRef} className="narrative-chart"></div>
-          <div className="chart-legend">
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
-            {showPostgrad && <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>Postgrad loan</span></div>}
-            <div className="legend-item"><div className="legend-line solid"></div><span>Total rate (with loan)</span></div>
-            <div className="legend-item"><div className="legend-line dashed"></div><span>Total rate (no loan)</span></div>
-          </div>
-        </div>
-
-        <p>
-          {hasLoan ? `The student loan repayment band (amber) begins at £${d3.format(",.0f")(planThreshold)}—the ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} threshold. Above this level, each additional pound of earnings incurs the 9% repayment rate alongside income tax and NI. At £${d3.format(",.0f")(exampleSalary)}, a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan faces a marginal rate of ${(marginalWithLoan.totalRate * 100).toFixed(0)}%, compared to ${(marginalWithoutLoan.totalRate * 100).toFixed(0)}% without a loan.` : "Select a student loan plan above to see the impact of repayments on marginal rates."}
-        </p>
-      </section>
-
       {/* Section 2: Take-Home Impact */}
       <section id="takeHome" ref={sectionRefs.takeHome} className="narrative-section">
         <h2>Impact on take-home pay</h2>
@@ -1528,9 +1529,8 @@ export default function StudentLoanCalculator() {
           <h2>Lifetime repayment analysis</h2>
           <p>
             The following chart projects cumulative repayments and remaining balance over the life of the loan.
-            Total repayments depend on salary trajectory, the loan's interest rate, and the write-off period.
-            {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loans are written off after <strong>{getPlanWriteoffYears(params, selectedPlan)} years</strong>.
-            This analysis assumes graduation at age <strong>{age}</strong>.
+            Total repayments depend on salary trajectory, the loan's interest rate, and the write-off period. {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loans are written off after <strong>{getPlanWriteoffYears(params, selectedPlan)} years</strong>.
+            This analysis uses the selected age (<strong>{age}</strong>) as the graduation age.
           </p>
 
           {apiLoading && <div className="api-loading">Loading data from API...</div>}
@@ -1555,72 +1555,6 @@ export default function StudentLoanCalculator() {
               ? `The remaining £${d3.format(",.0f")(lifetimeData[lifetimeData.length - 1]?.remainingBalance)} would be written off.`
               : `The loan would be fully repaid before the ${getPlanWriteoffYears(params, selectedPlan)}-year write-off period.`}
           </p>
-        </section>
-      )}
-
-      {/* Section: Autumn Budget 2025 Effects */}
-      {hasLoan && (
-        <section id="policy" ref={sectionRefs.policy} className="narrative-section">
-          <h2>Autumn Budget 2025 effects on student loan</h2>
-
-          {selectedPlan !== "plan2" ? (
-            <div className="plan2-notice">
-              <p>
-                This analysis applies to <strong>Plan 2</strong> student loans only. The Autumn Budget 2025
-                froze Plan 2 repayment thresholds for 3 years (2027–2029).
-              </p>
-              <p>Select <strong>Plan 2</strong> above to see the impact of the threshold freeze.</p>
-            </div>
-          ) : (
-            <>
-              <p>
-                The Autumn Budget 2025 froze Plan 2 repayment thresholds at <strong>£29,385</strong> for
-                3 years from April 2027 through April 2029. Without the freeze, thresholds would have
-                continued rising with RPI inflation. RPI uprating resumes from 2030.
-              </p>
-
-              <p>
-                The following chart shows the {policyChartView === "annual" ? "annual" : "cumulative"} extra
-                repayment at each age due to this policy change compared to RPI-linked thresholds.
-                {policyChartView === "annual"
-                  ? " Each bar represents how much more the borrower pays that year under the frozen threshold."
-                  : " Each bar represents the total extra amount paid up to that age."}
-                {" "}This analysis assumes graduation at age <strong>{age}</strong>.
-              </p>
-
-              <div className="narrative-chart-container">
-                <div className="chart-header" style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
-                  <div className="chart-view-toggle">
-                    <button
-                      className={`toggle-btn ${policyChartView === "annual" ? "active" : ""}`}
-                      onClick={() => setPolicyChartView("annual")}
-                    >
-                      Annual
-                    </button>
-                    <button
-                      className={`toggle-btn ${policyChartView === "cumulative" ? "active" : ""}`}
-                      onClick={() => setPolicyChartView("cumulative")}
-                    >
-                      Cumulative
-                    </button>
-                  </div>
-                </div>
-                <div ref={policyChartRef} className="narrative-chart"></div>
-                <div className="chart-legend">
-                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>{policyChartView === "annual" ? "Annual" : "Cumulative"} extra repayment due to threshold freeze</span></div>
-                </div>
-              </div>
-
-              <p>
-                The 3-year threshold freeze results in <strong>{(() => {
-                  const impact = policyData.filter(d => (d.balanceFrozen || 0) > 0).slice(-1)[0]?.cumulativeImpact || policyData[policyData.length - 1]?.cumulativeImpact || 0;
-                  return impact >= 0 ? `£${d3.format(",.0f")(impact)}` : `-£${d3.format(",.0f")(Math.abs(impact))}`;
-                })()}</strong> more
-                in total repayments over the loan's lifetime compared to RPI-linked thresholds. Without the freeze, thresholds would reach{" "}
-                £{d3.format(",.0f")(policyData[policyData.length - 1]?.thresholdIndexed || 0)} by the write-off date.
-              </p>
-            </>
-          )}
         </section>
       )}
 
