@@ -985,6 +985,188 @@ def calculate_lifetime_additional_deductions(
     }
 
 
+def calculate_complete_marginal_rates(
+    year: int = 2026,
+    student_loan_plan: str = "PLAN_2",
+    num_children: int = 0,
+    monthly_rent: float = 0,
+    is_couple: bool = False,
+    partner_income: float = 0,
+    has_postgrad: bool = False,
+    income_range: tuple[int, int] = (0, 80_000),
+    num_points: int = 161,
+) -> pd.DataFrame:
+    """Calculate complete marginal tax rates including UC using PolicyEngine UK.
+
+    This function calculates the true marginal deduction rate including:
+    - Income tax
+    - National Insurance
+    - Student loan repayments
+    - Postgraduate loan repayments (if has_postgrad is True)
+    - Universal Credit taper (55% withdrawal rate)
+
+    For UC recipients, marginal rates can reach 80%+ due to the UC taper
+    interacting with income tax and NI.
+
+    Args:
+        year: Tax year for calculation.
+        student_loan_plan: Student loan plan (NONE, PLAN_1, PLAN_2, PLAN_4, PLAN_5, POSTGRADUATE).
+        num_children: Number of dependent children (affects UC eligibility and work allowance).
+        monthly_rent: Monthly rent amount (affects UC housing element).
+        is_couple: Whether the claimant has a partner (affects UC standard allowance).
+        has_postgrad: Whether borrower has postgraduate loan (6% above threshold).
+        partner_income: Partner's annual employment income (if couple).
+        income_range: (min, max) employment income range.
+        num_points: Number of income points to calculate.
+
+    Returns:
+        DataFrame with income levels and complete marginal rate breakdown.
+    """
+    # Build the situation based on household composition
+    people = {
+        "adult": {
+            "age": {year: 30},
+            "employment_income": {year: 0},
+        }
+    }
+
+    members = ["adult"]
+
+    # Add partner if couple
+    if is_couple:
+        people["partner"] = {
+            "age": {year: 30},
+            "employment_income": {year: partner_income},
+        }
+        members.append("partner")
+
+    # Add children if specified
+    for i in range(num_children):
+        child_id = f"child_{i+1}"
+        people[child_id] = {
+            "age": {year: 5 + i * 2},  # Ages 5, 7, 9, etc.
+        }
+        members.append(child_id)
+
+    # Add student loan plan if not NONE
+    if student_loan_plan and student_loan_plan != "NONE":
+        people["adult"]["student_loan_plan"] = {year: student_loan_plan}
+
+    situation = {
+        "people": people,
+        "benunits": {
+            "benunit": {
+                "members": members,
+            }
+        },
+        "households": {
+            "household": {
+                "members": members,
+                "region": {year: "LONDON"},
+            }
+        },
+        "axes": [
+            [
+                {
+                    "name": "employment_income",
+                    "min": income_range[0],
+                    "max": income_range[1],
+                    "count": num_points,
+                    "period": str(year),
+                }
+            ]
+        ],
+    }
+
+    # Add rent if specified (enables UC housing element)
+    if monthly_rent > 0:
+        situation["households"]["household"]["rent"] = {year: monthly_rent * 12}
+
+    # Set UC claim status - claim UC if eligible (children or low income with housing)
+    if num_children > 0 or monthly_rent > 0:
+        situation["benunits"]["benunit"]["would_claim_uc"] = {year: True}
+
+    sim = Simulation(situation=situation)
+
+    # Get household-level values (these are already aggregated)
+    universal_credit = sim.calculate("universal_credit", year)
+    household_net_income = sim.calculate("household_net_income", year)
+
+    # Get person-level values and aggregate to household level
+    # The axes create num_points variations, so we need to reshape and sum
+    num_people = 1 + (1 if is_couple else 0) + num_children
+    employment_income_raw = sim.calculate("employment_income", year)
+    income_tax_raw = sim.calculate("income_tax", year)
+    ni_raw = sim.calculate("national_insurance", year)
+    student_loan_raw = sim.calculate("student_loan_repayment", year)
+
+    # Reshape to (num_points, num_people) and get adult's income only (first person)
+    # The adult is always the first person in the members list
+    employment_income_reshaped = employment_income_raw.reshape(-1, num_people)
+    adult_employment_income = employment_income_reshaped[:, 0]  # Adult's income only (the varying axis)
+
+    # Sum taxes across all household members
+    income_tax = income_tax_raw.reshape(-1, num_people).sum(axis=1)
+    ni = ni_raw.reshape(-1, num_people).sum(axis=1)
+    student_loan = student_loan_raw.reshape(-1, num_people).sum(axis=1)
+
+    # Use adult's employment income for the x-axis
+    employment_income = adult_employment_income
+
+    # Calculate marginal rates using gradient
+    delta = employment_income[1] - employment_income[0] if len(employment_income) > 1 else 500
+
+    income_tax_marginal = np.gradient(income_tax, delta)
+    ni_marginal = np.gradient(ni, delta)
+    sl_marginal = np.gradient(student_loan, delta)
+
+    # Postgrad loan: 6% above threshold (calculated manually, not from PolicyEngine)
+    # This allows having both undergrad AND postgrad loan simultaneously
+    params = get_tax_parameters(year)
+    postgrad_threshold = params["sl_postgrad_threshold"]
+    postgrad_rate = params["sl_postgrad_rate"]
+
+    if has_postgrad:
+        # Postgrad marginal rate is 6% (or configured rate) above threshold
+        postgrad_marginal = np.where(employment_income > postgrad_threshold, postgrad_rate, 0.0)
+    else:
+        postgrad_marginal = np.zeros_like(employment_income)
+
+    # UC marginal rate is negative (benefit withdrawal)
+    # We want to show it as positive (deduction from net income)
+    uc_change = np.gradient(universal_credit, delta)
+    uc_marginal = -uc_change  # Negative change in UC = positive marginal rate
+
+    # Total marginal rate = 1 - (change in net income / change in gross income)
+    net_income_change = np.gradient(household_net_income, delta)
+    total_marginal = 1 - net_income_change
+
+    # Clamp values between 0 and 1
+    total_marginal = np.clip(total_marginal, 0, 1)
+    uc_marginal = np.clip(uc_marginal, 0, 1)
+
+    df = pd.DataFrame({
+        "employment_income": employment_income,
+        "income_tax": income_tax,
+        "national_insurance": ni,
+        "student_loan_repayment": student_loan,
+        "universal_credit": universal_credit,
+        "household_net_income": household_net_income,
+        "income_tax_marginal_rate": income_tax_marginal,
+        "ni_marginal_rate": ni_marginal,
+        "student_loan_marginal_rate": sl_marginal,
+        "postgrad_marginal_rate": postgrad_marginal,
+        "uc_marginal_rate": uc_marginal,
+        "total_marginal_rate": total_marginal,
+    })
+    # Add scalar metadata columns
+    df["num_children"] = num_children
+    df["monthly_rent"] = monthly_rent
+    df["student_loan_plan"] = student_loan_plan
+    df["has_postgrad"] = has_postgrad
+    return df
+
+
 def export_to_csv(
     df: pd.DataFrame,
     filename: str = "student_loan_effective_ni.csv",

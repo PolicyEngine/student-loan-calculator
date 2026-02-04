@@ -20,6 +20,7 @@ from .student_loan_effective_ni import (
     generate_lifetime_repayment_data,
     generate_interest_comparison_data,
     generate_policy_comparison_data,
+    calculate_complete_marginal_rates,
 )
 
 # Thread pool for running CPU-bound calculations in parallel
@@ -81,6 +82,53 @@ class CalculatorInput(BaseModel):
         ge=0,
         le=0.2,
         description="Custom interest rate override (e.g., 0.06 for 6%). If None, uses plan default.",
+    )
+
+
+class CompleteMTRInput(BaseModel):
+    """API request model for complete marginal tax rate calculation including UC."""
+
+    year: int = Field(
+        default=2026,
+        ge=2025,
+        le=2030,
+        description="Tax year for parameters",
+    )
+    student_loan_plan: str = Field(
+        default="PLAN_2",
+        description="Student loan plan (NONE, PLAN_1, PLAN_2, PLAN_4, PLAN_5, POSTGRADUATE)",
+    )
+    num_children: int = Field(
+        default=0,
+        ge=0,
+        le=10,
+        description="Number of dependent children (affects UC eligibility and work allowance)",
+    )
+    monthly_rent: float = Field(
+        default=0,
+        ge=0,
+        le=5000,
+        description="Monthly rent amount (affects UC housing element)",
+    )
+    is_couple: bool = Field(
+        default=False,
+        description="Whether the claimant has a partner (affects UC standard allowance and income assessment)",
+    )
+    partner_income: float = Field(
+        default=0,
+        ge=0,
+        le=200000,
+        description="Partner's annual employment income (if couple)",
+    )
+    has_postgrad: bool = Field(
+        default=False,
+        description="Whether borrower has postgraduate loan (6% above threshold)",
+    )
+    income_max: int = Field(
+        default=150000,
+        ge=20000,
+        le=200000,
+        description="Maximum income for analysis range",
     )
 
 
@@ -193,6 +241,98 @@ async def calculate_student_loan(data: CalculatorInput):
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@app.post("/complete-mtr")
+async def calculate_complete_mtr(data: CompleteMTRInput):
+    """Calculate complete marginal tax rates including Universal Credit.
+
+    This endpoint calculates the true marginal deduction rate including:
+    - Income tax
+    - National Insurance
+    - Student loan repayments
+    - Universal Credit taper (55% withdrawal rate)
+
+    For UC recipients with children and/or housing costs, marginal rates can
+    reach 80%+ due to the UC taper interacting with income tax and NI.
+
+    Returns:
+        - mtr_data: Array of income levels with marginal rate breakdowns
+        - summary: Key statistics about the MTR schedule
+    """
+    try:
+        loop = asyncio.get_event_loop()
+
+        # Map frontend plan names to PolicyEngine format
+        plan_map = {
+            "none": "NONE",
+            "plan1": "PLAN_1",
+            "plan2": "PLAN_2",
+            "plan4": "PLAN_4",
+            "plan5": "PLAN_5",
+            "postgrad": "POSTGRADUATE",
+            # Also accept uppercase versions
+            "NONE": "NONE",
+            "PLAN_1": "PLAN_1",
+            "PLAN_2": "PLAN_2",
+            "PLAN_4": "PLAN_4",
+            "PLAN_5": "PLAN_5",
+            "POSTGRADUATE": "POSTGRADUATE",
+        }
+        student_loan_plan = plan_map.get(data.student_loan_plan, "PLAN_2")
+
+        # Run calculation in thread pool
+        mtr_future = loop.run_in_executor(
+            executor,
+            lambda: calculate_complete_marginal_rates(
+                year=data.year,
+                student_loan_plan=student_loan_plan,
+                num_children=data.num_children,
+                monthly_rent=data.monthly_rent,
+                is_couple=data.is_couple,
+                partner_income=data.partner_income,
+                has_postgrad=data.has_postgrad,
+                income_range=(0, data.income_max),
+                num_points=161,
+            )
+        )
+
+        mtr_df = await mtr_future
+
+        # Convert DataFrame to list of dicts
+        mtr_data = mtr_df.to_dict(orient="records") if not mtr_df.empty else []
+
+        # Calculate summary statistics
+        max_mtr = mtr_df["total_marginal_rate"].max() if not mtr_df.empty else 0
+        max_mtr_income = mtr_df.loc[mtr_df["total_marginal_rate"].idxmax(), "employment_income"] if not mtr_df.empty else 0
+
+        # Find income ranges where UC taper applies (uc_marginal_rate > 0)
+        uc_active = mtr_df[mtr_df["uc_marginal_rate"] > 0.01]
+        uc_starts = uc_active["employment_income"].min() if not uc_active.empty else None
+        uc_ends = uc_active["employment_income"].max() if not uc_active.empty else None
+
+        summary = {
+            "max_marginal_rate": float(max_mtr),
+            "max_marginal_rate_income": float(max_mtr_income),
+            "uc_taper_starts": float(uc_starts) if uc_starts else None,
+            "uc_taper_ends": float(uc_ends) if uc_ends else None,
+            "has_uc_taper": not uc_active.empty,
+            "num_children": data.num_children,
+            "monthly_rent": data.monthly_rent,
+            "is_couple": data.is_couple,
+            "partner_income": data.partner_income,
+            "student_loan_plan": student_loan_plan,
+        }
+
+        return convert_to_native({
+            "mtr_data": mtr_data,
+            "summary": summary,
+        })
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Calculation error: {e}")
 
 
 @app.get("/parameters/{year}")

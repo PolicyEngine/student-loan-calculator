@@ -32,6 +32,7 @@ const COLORS = {
   ni: "#5EEAD4",
   studentLoan: "#F59E0B",
   postgradLoan: "#DC2626",
+  ucTaper: "#0D9488", // Darker teal for UC taper
   withLoan: "#319795",
   withoutLoan: "#9CA3AF",
   text: "#101828",
@@ -295,6 +296,16 @@ export default function StudentLoanCalculator() {
   const [apiError, setApiError] = useState(null);
   const [policyChartView, setPolicyChartView] = useState("annual"); // "annual" or "cumulative"
 
+  // Complete MTR with UC state
+  const [numChildren, setNumChildren] = useState(0);
+  const [monthlyRent, setMonthlyRent] = useState(1000);
+  const [isCouple, setIsCouple] = useState(false);
+  const [partnerIncome, setPartnerIncome] = useState(0);
+  const [householdExpanded, setHouseholdExpanded] = useState(false);
+  const [completeMtrData, setCompleteMtrData] = useState(null);
+  const [completeMtrLoading, setCompleteMtrLoading] = useState(false);
+  const [completeMtrError, setCompleteMtrError] = useState(null);
+
   // Years since graduation (for write-off calculations)
   // Can be negative if graduation year is in the future
   const yearsSinceGraduation = selectedYear - graduationYear;
@@ -314,6 +325,7 @@ export default function StudentLoanCalculator() {
   const ageChartRef = useRef(null);
   const lifetimeChartRef = useRef(null);
   const policyChartRef = useRef(null);
+  const completeMtrChartRef = useRef(null);
   const tooltipRef = useRef(null);
 
   // Scroll spy state and refs
@@ -322,6 +334,7 @@ export default function StudentLoanCalculator() {
     overview: useRef(null),
     breakdown: useRef(null),
     marginalRates: useRef(null),
+    completeMtr: useRef(null),
     takeHome: useRef(null),
     repaymentTimeline: useRef(null),
     lifetime: useRef(null),
@@ -330,6 +343,7 @@ export default function StudentLoanCalculator() {
   const sections = [
     { id: "overview", label: "Overview" },
     { id: "marginalRates", label: "Marginal rates" },
+    { id: "completeMtr", label: "With UC" },
     { id: "breakdown", label: "Breakdown" },
     { id: "takeHome", label: "Take-home" },
     { id: "repaymentTimeline", label: "Timeline" },
@@ -439,6 +453,60 @@ export default function StudentLoanCalculator() {
     }, 300);
     return () => clearTimeout(timer);
   }, [fetchApiData]);
+
+  // Fetch complete MTR data (with UC) from API
+  const fetchCompleteMtrData = useCallback(async () => {
+    setCompleteMtrLoading(true);
+    setCompleteMtrError(null);
+
+    try {
+      // Map plan names to PolicyEngine format
+      const planMap = {
+        none: "NONE",
+        plan1: "PLAN_1",
+        plan2: "PLAN_2",
+        plan4: "PLAN_4",
+        plan5: "PLAN_5",
+      };
+
+      const requestBody = {
+        year: selectedYear,
+        student_loan_plan: planMap[selectedPlan] || "PLAN_2",
+        num_children: numChildren,
+        monthly_rent: monthlyRent,
+        is_couple: isCouple,
+        partner_income: isCouple ? partnerIncome : 0,
+        has_postgrad: showPostgrad,
+        income_max: 150000,
+      };
+
+      const response = await fetch(`${getApiUrl()}/complete-mtr`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setCompleteMtrData(result);
+    } catch (err) {
+      console.error("Error fetching complete MTR data:", err);
+      setCompleteMtrError(err.message);
+    } finally {
+      setCompleteMtrLoading(false);
+    }
+  }, [selectedYear, selectedPlan, numChildren, monthlyRent, isCouple, partnerIncome, showPostgrad]);
+
+  // Debounced fetch for complete MTR
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchCompleteMtrData();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [fetchCompleteMtrData]);
 
   const params = useMemo(() => {
     if (!paramsLoaded) return DEFAULT_PARAMS;
@@ -633,7 +701,7 @@ export default function StudentLoanCalculator() {
       .attr("font-size", "12px").attr("fill", "#64748B").text("Gross income");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
     g.append("text").attr("transform", "rotate(-90)").attr("x", -height / 2).attr("y", -50).attr("text-anchor", "middle")
-      .attr("font-size", "12px").attr("fill", "#64748B").text("Marginal deduction rate");
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Marginal tax rate");
 
     // Tooltip
     const tooltip = d3.select(tooltipRef.current);
@@ -660,9 +728,9 @@ export default function StudentLoanCalculator() {
       .on("mouseout", () => tooltip.style("opacity", 0));
   }, [marginalRateData, params, paramsLoaded, showPostgrad, planThreshold, exampleSalary, marginalWithLoan, marginalWithoutLoan]);
 
-  // Chart 2: Take-Home Pay
+  // Chart 2: Take-Home Pay (using API data for household)
   useEffect(() => {
-    if (!takeHomeChartRef.current || !paramsLoaded) return;
+    if (!takeHomeChartRef.current || !completeMtrData?.mtr_data?.length) return;
 
     const container = takeHomeChartRef.current;
     d3.select(container).selectAll("*").remove();
@@ -677,77 +745,123 @@ export default function StudentLoanCalculator() {
 
     const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-    const x = d3.scaleLinear().domain([0, 150000]).range([0, width]);
-    const y = d3.scaleLinear().domain([0, d3.max(takeHomeData, (d) => d.withoutLoan) * 1.05]).range([height, 0]);
+    const data = completeMtrData.mtr_data;
+    const effectivePartnerIncome = isCouple ? partnerIncome : 0;
+
+    // Transform data to include total household income and both scenarios
+    const chartData = data.map(d => ({
+      totalIncome: d.employment_income + effectivePartnerIncome,
+      headIncome: d.employment_income,
+      netWithLoan: d.household_net_income,
+      netWithoutLoan: d.household_net_income + d.student_loan_repayment, // Add back loan repayment
+      studentLoan: d.student_loan_repayment,
+      uc: d.universal_credit,
+    }));
+
+    const minIncome = effectivePartnerIncome;
+    const maxIncome = d3.max(chartData, d => d.totalIncome);
+
+    const x = d3.scaleLinear().domain([minIncome, maxIncome]).range([0, width]);
+    const y = d3.scaleLinear().domain([0, d3.max(chartData, d => d.netWithoutLoan) * 1.05]).range([height, 0]);
 
     g.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(6));
 
-    const lineWithLoan = d3.line().x((d) => x(d.income)).y((d) => y(d.withLoan)).curve(d3.curveMonotoneX);
-    const lineWithoutLoan = d3.line().x((d) => x(d.income)).y((d) => y(d.withoutLoan)).curve(d3.curveMonotoneX);
+    // Gap area between the two lines
+    const gapArea = d3.area()
+      .x(d => x(d.totalIncome))
+      .y0(d => y(d.netWithLoan))
+      .y1(d => y(d.netWithoutLoan))
+      .curve(d3.curveMonotoneX);
 
-    // Gap area
-    const gapArea = d3.area().x((d) => x(d.income)).y0((d) => y(d.withLoan)).y1((d) => y(d.withoutLoan)).curve(d3.curveMonotoneX);
-    if (hasLoan) {
-      g.append("path").datum(takeHomeData.filter((d) => d.income >= planThreshold))
-        .attr("fill", COLORS.studentLoan).attr("fill-opacity", 0.15).attr("d", gapArea);
-    }
+    g.append("path")
+      .datum(chartData.filter(d => d.studentLoan > 0))
+      .attr("fill", COLORS.studentLoan)
+      .attr("fill-opacity", 0.15)
+      .attr("d", gapArea);
 
-    g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withoutLoan).attr("stroke-width", 3.5).attr("d", lineWithoutLoan);
-    g.append("path").datum(takeHomeData).attr("fill", "none").attr("stroke", COLORS.withLoan).attr("stroke-width", 3.5).attr("d", lineWithLoan);
+    // Without loan line
+    const lineWithoutLoan = d3.line()
+      .x(d => x(d.totalIncome))
+      .y(d => y(d.netWithoutLoan))
+      .curve(d3.curveMonotoneX);
+
+    g.append("path")
+      .datum(chartData)
+      .attr("fill", "none")
+      .attr("stroke", COLORS.withoutLoan)
+      .attr("stroke-width", 2.5)
+      .attr("d", lineWithoutLoan);
+
+    // With loan line
+    const lineWithLoan = d3.line()
+      .x(d => x(d.totalIncome))
+      .y(d => y(d.netWithLoan))
+      .curve(d3.curveMonotoneX);
+
+    g.append("path")
+      .datum(chartData)
+      .attr("fill", "none")
+      .attr("stroke", COLORS.withLoan)
+      .attr("stroke-width", 2.5)
+      .attr("d", lineWithLoan);
 
     // Highlight selected salary
-    if (exampleSalary > 0 && exampleSalary <= 150000) {
-      const netWithLoan = calculateDeductions(exampleSalary, params, selectedPlan, showPostgrad).netIncome;
-      const netWithoutLoan = calculateDeductions(exampleSalary, params, "none", false).netIncome;
+    const totalHouseholdSalary = exampleSalary + effectivePartnerIncome;
+    if (totalHouseholdSalary >= minIncome && totalHouseholdSalary <= maxIncome) {
+      const closestPoint = chartData.reduce((prev, curr) =>
+        Math.abs(curr.totalIncome - totalHouseholdSalary) < Math.abs(prev.totalIncome - totalHouseholdSalary) ? curr : prev
+      );
 
       g.append("line")
-        .attr("x1", x(exampleSalary)).attr("x2", x(exampleSalary))
+        .attr("x1", x(totalHouseholdSalary)).attr("x2", x(totalHouseholdSalary))
         .attr("y1", 0).attr("y2", height)
         .attr("stroke", COLORS.primary).attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
 
       g.append("circle")
-        .attr("cx", x(exampleSalary)).attr("cy", y(netWithoutLoan)).attr("r", 6)
+        .attr("cx", x(totalHouseholdSalary)).attr("cy", y(closestPoint.netWithoutLoan)).attr("r", 6)
         .attr("fill", COLORS.withoutLoan).attr("stroke", "#fff").attr("stroke-width", 2);
       g.append("circle")
-        .attr("cx", x(exampleSalary)).attr("cy", y(netWithLoan)).attr("r", 6)
+        .attr("cx", x(totalHouseholdSalary)).attr("cy", y(closestPoint.netWithLoan)).attr("r", 6)
         .attr("fill", COLORS.withLoan).attr("stroke", "#fff").attr("stroke-width", 2);
 
-      const gap = netWithoutLoan - netWithLoan;
+      const gap = closestPoint.netWithoutLoan - closestPoint.netWithLoan;
       if (gap > 0) {
         g.append("text")
-          .attr("x", x(exampleSalary) + 8).attr("y", 15)
+          .attr("x", x(totalHouseholdSalary) + 8).attr("y", 15)
           .attr("font-size", "12px").attr("font-weight", "600").attr("fill", COLORS.studentLoan)
           .text(`-£${d3.format(",.0f")(gap)}/yr`);
       }
     }
 
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x).tickFormat((d) => `£${d / 1000}k`).ticks(6));
+      .call(d3.axisBottom(x).tickFormat(d => `£${d / 1000}k`).ticks(6));
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
-      .attr("font-size", "12px").attr("fill", "#64748B").text("Gross income");
-    g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `£${d / 1000}k`).ticks(6));
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Total household income");
+    g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat(d => `£${d / 1000}k`).ticks(6));
 
     // Tooltip
     const tooltip = d3.select(tooltipRef.current);
-    const bisect = d3.bisector((d) => d.income).left;
+    const bisect = d3.bisector(d => d.totalIncome).left;
 
     g.append("rect").attr("width", width).attr("height", height).attr("fill", "none").attr("pointer-events", "all")
       .on("mousemove", function (event) {
         const [mx] = d3.pointer(event);
         const income = x.invert(mx);
-        const i = bisect(takeHomeData, income, 1);
-        const d = takeHomeData[Math.min(i, takeHomeData.length - 1)];
-        const gap = d.withoutLoan - d.withLoan;
+        const i = bisect(chartData, income, 1);
+        const d = chartData[Math.min(i, chartData.length - 1)];
+        const gap = d.netWithoutLoan - d.netWithLoan;
+        const ucRow = d.uc > 0 ? `<div class="tooltip-row"><span style="color:${COLORS.ucTaper}">● UC received</span><span style="font-weight:600">+£${d3.format(",.0f")(d.uc)}</span></div>` : '';
         tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
-          .html(`<div class="tooltip-title">£${d3.format(",.0f")(d.income)} gross</div>
+          .html(`<div class="tooltip-title">£${d3.format(",.0f")(d.totalIncome)} household income</div>
             <div class="tooltip-section">
-              <div class="tooltip-row"><span style="color:${COLORS.withoutLoan}">● No loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.withoutLoan)}</span></div>
-              <div class="tooltip-row"><span style="color:${COLORS.withLoan}">● With loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.withLoan)}</span></div>
+              <div class="tooltip-row"><span style="color:${COLORS.withoutLoan}">● No loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.netWithoutLoan)}</span></div>
+              <div class="tooltip-row"><span style="color:${COLORS.withLoan}">● With loan</span><span style="font-weight:600">£${d3.format(",.0f")(d.netWithLoan)}</span></div>
+              ${ucRow}
             </div>
-            <div class="tooltip-row tooltip-total"><span>Difference</span><span style="color:${COLORS.studentLoan};font-weight:700">-£${d3.format(",.0f")(gap)}</span></div>`);
+            <div class="tooltip-row tooltip-total"><span>Loan repayment</span><span style="color:${COLORS.studentLoan};font-weight:700">-£${d3.format(",.0f")(gap)}</span></div>`);
       })
       .on("mouseout", () => tooltip.style("opacity", 0));
-  }, [takeHomeData, params, paramsLoaded, showPostgrad, exampleSalary, selectedPlan, hasLoan, planThreshold]);
+  }, [completeMtrData, exampleSalary, isCouple, partnerIncome]);
 
   // Chart 3: Repayment timeline (stacked bars by years since graduation)
   useEffect(() => {
@@ -1124,6 +1238,201 @@ export default function StudentLoanCalculator() {
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat(d => `£${d3.format(",.0f")(d)}`).ticks(6));
   }, [policyData, paramsLoaded, graduationYear, policyChartView]);
 
+  // Chart 7: Complete MTR with Universal Credit
+  useEffect(() => {
+    if (!completeMtrChartRef.current || !completeMtrData?.mtr_data?.length) return;
+
+    const container = completeMtrChartRef.current;
+    d3.select(container).selectAll("*").remove();
+
+    const margin = { top: 20, right: 30, bottom: 50, left: 70 };
+    const width = container.clientWidth - margin.left - margin.right;
+    const height = 400 - margin.top - margin.bottom;
+
+    const svg = d3.select(container)
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const data = completeMtrData.mtr_data;
+    // Add partner income to get total household income for x-axis
+    const effectivePartnerIncome = isCouple ? partnerIncome : 0;
+    const minIncome = effectivePartnerIncome; // Starts at partner income (or 0 if single)
+    const maxIncome = d3.max(data, d => d.employment_income) + effectivePartnerIncome;
+
+    const x = d3.scaleLinear().domain([minIncome, maxIncome]).range([0, width]);
+
+    // Helper to get total household income from head's income
+    const getHouseholdIncome = (headIncome) => headIncome + effectivePartnerIncome;
+    const y = d3.scaleLinear().domain([0, 100]).range([height, 0]);
+
+    // Grid
+    g.append("g").attr("class", "grid")
+      .call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(10));
+
+    // Stacked areas for each component (x uses total household income)
+    const areaIT = d3.area()
+      .x(d => x(getHouseholdIncome(d.employment_income)))
+      .y0(y(0))
+      .y1(d => y(d.income_tax_marginal_rate * 100))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(data)
+      .attr("fill", COLORS.incomeTax)
+      .attr("fill-opacity", 0.7)
+      .attr("d", areaIT);
+
+    const areaNI = d3.area()
+      .x(d => x(getHouseholdIncome(d.employment_income)))
+      .y0(d => y(d.income_tax_marginal_rate * 100))
+      .y1(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate) * 100))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(data)
+      .attr("fill", COLORS.ni)
+      .attr("fill-opacity", 0.7)
+      .attr("d", areaNI);
+
+    const areaSL = d3.area()
+      .x(d => x(getHouseholdIncome(d.employment_income)))
+      .y0(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate) * 100))
+      .y1(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate) * 100))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(data)
+      .attr("fill", COLORS.studentLoan)
+      .attr("fill-opacity", 0.7)
+      .attr("d", areaSL);
+
+    // Postgrad loan area (only if showPostgrad is true)
+    if (showPostgrad) {
+      const areaPG = d3.area()
+        .x(d => x(getHouseholdIncome(d.employment_income)))
+        .y0(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate) * 100))
+        .y1(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (d.postgrad_marginal_rate || 0)) * 100))
+        .curve(d3.curveStepAfter);
+
+      g.append("path")
+        .datum(data)
+        .attr("fill", COLORS.postgradLoan)
+        .attr("fill-opacity", 0.7)
+        .attr("d", areaPG);
+    }
+
+    // UC taper area (shown in different color from postgrad)
+    const areaUC = d3.area()
+      .x(d => x(getHouseholdIncome(d.employment_income)))
+      .y0(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0)) * 100))
+      .y1(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0) + d.uc_marginal_rate) * 100))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(data)
+      .attr("fill", COLORS.ucTaper)
+      .attr("fill-opacity", 0.7)
+      .attr("d", areaUC);
+
+    // Total marginal rate line (with loan) - sum of all components
+    const lineTotal = d3.line()
+      .x(d => x(getHouseholdIncome(d.employment_income)))
+      .y(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0) + d.uc_marginal_rate) * 100))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(data)
+      .attr("fill", "none")
+      .attr("stroke", "#344054")
+      .attr("stroke-width", 1.5)
+      .attr("d", lineTotal);
+
+    // Total marginal rate line (without loan) - sum without student loan and postgrad
+    const lineTotalNoLoan = d3.line()
+      .x(d => x(getHouseholdIncome(d.employment_income)))
+      .y(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.uc_marginal_rate) * 100))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(data)
+      .attr("fill", "none")
+      .attr("stroke", "#344054")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "6,3")
+      .attr("d", lineTotalNoLoan);
+
+    // Highlight selected salary with vertical line (using total household income)
+    const totalHouseholdSalary = exampleSalary + effectivePartnerIncome;
+    if (totalHouseholdSalary > 0 && totalHouseholdSalary <= maxIncome) {
+      const closestPoint = data.reduce((prev, curr) =>
+        Math.abs(curr.employment_income - exampleSalary) < Math.abs(prev.employment_income - exampleSalary) ? curr : prev
+      );
+
+      g.append("line")
+        .attr("x1", x(totalHouseholdSalary)).attr("x2", x(totalHouseholdSalary))
+        .attr("y1", 0).attr("y2", height)
+        .attr("stroke", COLORS.primary).attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
+
+      const postgradRate = showPostgrad ? (closestPoint.postgrad_marginal_rate || 0) : 0;
+      const totalWithLoan = (closestPoint.income_tax_marginal_rate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
+
+      g.append("circle")
+        .attr("cx", x(totalHouseholdSalary))
+        .attr("cy", y(totalWithLoan))
+        .attr("r", 6)
+        .attr("fill", "#344054").attr("stroke", "#fff").attr("stroke-width", 2);
+
+      // Label showing total rate
+      g.append("text")
+        .attr("x", x(totalHouseholdSalary) + 8).attr("y", 15)
+        .attr("font-size", "12px").attr("font-weight", "600").attr("fill", COLORS.ucTaper)
+        .text(`${totalWithLoan.toFixed(0)}%`);
+    }
+
+    // Axes
+    g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x).tickFormat(d => `£${d / 1000}k`).ticks(8));
+    g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Total household head employment income");
+    g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat(d => `${d}%`).ticks(10));
+    g.append("text").attr("transform", "rotate(-90)").attr("x", -height / 2).attr("y", -50).attr("text-anchor", "middle")
+      .attr("font-size", "12px").attr("fill", "#64748B").text("Marginal tax rate");
+
+    // Tooltip
+    const tooltip = d3.select(tooltipRef.current);
+    const bisect = d3.bisector(d => getHouseholdIncome(d.employment_income)).left;
+
+    g.append("rect").attr("width", width).attr("height", height).attr("fill", "none").attr("pointer-events", "all")
+      .on("mousemove", function (event) {
+        const [mx] = d3.pointer(event);
+        const totalIncome = x.invert(mx);
+        const i = bisect(data, totalIncome, 1);
+        const d = data[Math.min(i, data.length - 1)];
+        const householdTotal = getHouseholdIncome(d.employment_income);
+        const postgradRate = showPostgrad ? (d.postgrad_marginal_rate || 0) : 0;
+        const totalRate = (d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + postgradRate + d.uc_marginal_rate) * 100;
+        const ucRow = d.uc_marginal_rate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.ucTaper}">● UC taper</span><span style="font-weight:600">${(d.uc_marginal_rate * 100).toFixed(0)}%</span></div>` : '';
+        const pgRow = showPostgrad && postgradRate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.postgradLoan}">● Postgrad loan</span><span style="font-weight:600">${(postgradRate * 100).toFixed(0)}%</span></div>` : '';
+        const slRow = d.student_loan_marginal_rate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Student loan</span><span style="font-weight:600">${(d.student_loan_marginal_rate * 100).toFixed(0)}%</span></div>` : '';
+        tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+          .html(`<div class="tooltip-title">Household income: £${d3.format(",.0f")(householdTotal)}</div>
+            <div class="tooltip-section">
+              <div class="tooltip-row"><span style="color:${COLORS.incomeTax}">● Income tax</span><span style="font-weight:600">${(d.income_tax_marginal_rate * 100).toFixed(0)}%</span></div>
+              <div class="tooltip-row"><span style="color:${COLORS.ni}">● National Insurance</span><span style="font-weight:600">${(d.ni_marginal_rate * 100).toFixed(0)}%</span></div>
+              ${slRow}
+              ${pgRow}
+              ${ucRow}
+            </div>
+            <div class="tooltip-row tooltip-total"><span>Total marginal rate</span><span style="font-weight:700">${totalRate.toFixed(0)}%</span></div>
+            <div class="tooltip-row"><span>Net income</span><span style="font-weight:600">£${d3.format(",.0f")(d.household_net_income)}</span></div>
+            <div class="tooltip-row"><span>UC received</span><span style="font-weight:600">£${d3.format(",.0f")(d.universal_credit)}</span></div>`);
+      })
+      .on("mouseout", () => tooltip.style("opacity", 0));
+  }, [completeMtrData, exampleSalary, showPostgrad, isCouple, partnerIncome]);
+
   const annualRepayment = withLoan.studentLoan + withLoan.postgradLoan;
   const marginalDiff = (marginalWithLoan.totalRate - marginalWithoutLoan.totalRate) * 100;
 
@@ -1141,7 +1450,7 @@ export default function StudentLoanCalculator() {
       <section id="overview" ref={sectionRefs.overview} className="narrative-section">
         <h2>Overview</h2>
         <p>
-          This calculator analyses tax deductions for a single adult without children, excluding other forms of benefits or tax credits. It covers marginal deduction rates, tax position breakdowns, take-home pay comparisons, repayment timeline analysis, and lifetime repayment projections.
+          This calculator analyses tax deductions for a single adult without children, excluding other forms of benefits or tax credits. It covers marginal tax rates, tax position breakdowns, take-home pay comparisons, repayment timeline analysis, and lifetime repayment projections.
         </p>
         <p>
           In general, graduates with student loans repay 9% of income above a threshold. In {formatTaxYear(selectedYear)}, these are £{d3.format(",.0f")(params.slPlan1Threshold)} for Plan 1, £{d3.format(",.0f")(params.slPlan2Threshold)} for Plan 2, £{d3.format(",.0f")(params.slPlan4Threshold)} for Plan 4, and £{d3.format(",.0f")(params.slPlan5Threshold)} for Plan 5. These repayments are deducted alongside income tax and National Insurance, raising the marginal rate—the percentage taken from each additional pound earned. A basic rate taxpayer with a student loan faces a 37% marginal rate (compared to 28% without), rising to 51% for higher rate taxpayers (compared to 42%). <details className="expandable-section inline-details">
@@ -1296,227 +1605,324 @@ export default function StudentLoanCalculator() {
             </select>
           </div>
         </div>
+
+        {/* Expandable Household Information */}
+        <div className="household-expand-section">
+          <button
+            className="household-expand-button"
+            onClick={() => setHouseholdExpanded(!householdExpanded)}
+          >
+            <span>Enter household information</span>
+            <span className={`expand-arrow ${householdExpanded ? 'expanded' : ''}`}>▼</span>
+          </button>
+
+          {householdExpanded && (
+            <div className="household-controls-expanded">
+              <div className="control-item">
+                <label className="label-with-info">
+                  Household
+                  <span className="info-icon-wrapper">
+                    <span className="info-icon">i</span>
+                    <span className="info-tooltip">
+                      <strong>Household composition</strong>
+                      <br />
+                      Whether the household head has a partner. Affects UC eligibility and taper rates.
+                    </span>
+                  </span>
+                </label>
+                <select value={isCouple ? "couple" : "single"} onChange={(e) => setIsCouple(e.target.value === "couple")}>
+                  <option value="single">Single</option>
+                  <option value="couple">Couple</option>
+                </select>
+              </div>
+              {isCouple && (
+                <div className="control-item">
+                  <label className="label-with-info">
+                    Partner income
+                    <span className="info-icon-wrapper">
+                      <span className="info-icon">i</span>
+                      <span className="info-tooltip">
+                        <strong>Partner's annual income</strong>
+                        <br />
+                        Partner's employment income affects household UC entitlement.
+                      </span>
+                    </span>
+                  </label>
+                  <select value={partnerIncome} onChange={(e) => setPartnerIncome(parseInt(e.target.value))}>
+                    {Array.from({ length: 301 }, (_, i) => i * 500).map((val) => (
+                      <option key={val} value={val}>
+                        {val === 0 ? '£0 (not working)' : `£${d3.format(",.0f")(val)}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="control-item">
+                <label className="label-with-info">
+                  Children
+                  <span className="info-icon-wrapper">
+                    <span className="info-icon">i</span>
+                    <span className="info-tooltip">
+                      <strong>Dependent children</strong>
+                      <br />
+                      Number of children affects UC child element and work allowance.
+                    </span>
+                  </span>
+                </label>
+                <select value={numChildren} onChange={(e) => setNumChildren(parseInt(e.target.value))}>
+                  {Array.from({ length: 7 }, (_, i) => i).map(value => (
+                    <option key={value} value={value}>
+                      {value === 0 ? '0' : value === 1 ? '1 child' : `${value} children`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="control-item">
+                <label className="label-with-info">
+                  Monthly rent
+                  <span className="info-icon-wrapper">
+                    <span className="info-icon">i</span>
+                    <span className="info-tooltip">
+                      <strong>Housing costs</strong>
+                      <br />
+                      Monthly rent affects UC housing element eligibility.
+                    </span>
+                  </span>
+                </label>
+                <select value={monthlyRent} onChange={(e) => setMonthlyRent(parseInt(e.target.value))}>
+                  {Array.from({ length: 31 }, (_, i) => i * 100).map(value => (
+                    <option key={value} value={value}>
+                      {value === 0 ? '£0 (no rent)' : `£${d3.format(",")(value)}/month`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
-      {/* Chart 1: Marginal Rates */}
-      <section id="marginalRates" ref={sectionRefs.marginalRates} className="narrative-section">
-        <h2>Marginal deduction rates by income</h2>
+      {/* Section: Marginal Tax Rates */}
+      <section id="completeMtr" ref={sectionRefs.completeMtr} className="narrative-section">
+        <h2>Marginal tax rates by income</h2>
         <p>
-          The following chart displays the composition of marginal deduction rates across the income distribution.
-          The stacked areas show income tax (teal), National Insurance (light teal), and student loan repayments (amber).
-          The solid line indicates the total rate with a student loan; the dashed line shows the rate without.
+          The following chart displays the composition of marginal tax rates across the income distribution.
+          Income tax applies at 20% (basic rate) and 40% (higher rate). National Insurance is charged at 8% on earnings above the threshold.
+          Student loan repayments are 9% of income above the plan threshold. For households receiving Universal Credit,
+          the UC taper withdraws benefits as income rises. Use the household information controls above to adjust the household composition.
         </p>
 
-        <div className="narrative-chart-container">
-          <div ref={chartRef} className="narrative-chart"></div>
-          <div className="chart-legend">
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
-            {showPostgrad && <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>Postgrad loan</span></div>}
-            <div className="legend-item"><div className="legend-line solid"></div><span>Total rate (with loan)</span></div>
-            <div className="legend-item"><div className="legend-line dashed"></div><span>Total rate (no loan)</span></div>
-          </div>
-        </div>
+        {completeMtrLoading && <div className="api-loading">Calculating complete marginal rates...</div>}
+        {completeMtrError && <div className="api-error">Error: {completeMtrError}</div>}
 
-        <p>
-          {hasLoan ? `The student loan repayment band (amber) begins at £${d3.format(",.0f")(planThreshold)}—the ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} threshold. Above this level, each additional pound of earnings incurs the 9% repayment rate alongside income tax and NI. At £${d3.format(",.0f")(exampleSalary)}, a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan faces a marginal rate of ${(marginalWithLoan.totalRate * 100).toFixed(0)}%, compared to ${(marginalWithoutLoan.totalRate * 100).toFixed(0)}% without a loan.` : "Select a student loan plan above to see the impact of repayments on marginal rates."}
-        </p>
+        {completeMtrData && (
+          <>
+            <div className="narrative-chart-container">
+              <div ref={completeMtrChartRef} className="narrative-chart"></div>
+              <div className="chart-legend">
+                <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
+                <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
+                <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
+                {showPostgrad && <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>Postgrad loan</span></div>}
+                <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ucTaper }}></div><span>UC taper</span></div>
+                <div className="legend-item"><div className="legend-line solid"></div><span>Total rate (with loan)</span></div>
+                <div className="legend-item"><div className="legend-line dashed"></div><span>Total rate (no loan)</span></div>
+              </div>
+            </div>
+
+            {(() => {
+              // Calculate max from actual displayed data (including postgrad if enabled)
+              const data = completeMtrData.mtr_data;
+              let maxRate = 0;
+              let maxIncome = 0;
+              let maxPoint = null;
+              const effectivePartnerIncome = isCouple ? partnerIncome : 0;
+              data.forEach(d => {
+                const postgradRate = showPostgrad ? (d.postgrad_marginal_rate || 0) : 0;
+                const totalRate = (d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + postgradRate + d.uc_marginal_rate) * 100;
+                if (totalRate > maxRate) {
+                  maxRate = totalRate;
+                  maxIncome = d.employment_income + effectivePartnerIncome;
+                  maxPoint = { ...d, postgradRate };
+                }
+              });
+              const hasUC = maxPoint && maxPoint.uc_marginal_rate > 0.01;
+              const rateBreakdown = [
+                `${(maxPoint?.income_tax_marginal_rate * 100).toFixed(0)}% income tax`,
+                `${(maxPoint?.ni_marginal_rate * 100).toFixed(0)}% National Insurance`,
+                maxPoint?.student_loan_marginal_rate > 0.01 ? `${(maxPoint?.student_loan_marginal_rate * 100).toFixed(0)}% student loan` : null,
+                showPostgrad && maxPoint?.postgradRate > 0.01 ? `${(maxPoint?.postgradRate * 100).toFixed(0)}% postgrad loan` : null,
+                hasUC ? `${(maxPoint?.uc_marginal_rate * 100).toFixed(0)}% UC taper` : null,
+              ].filter(Boolean).join(', ');
+              return (
+                <p>
+                  Based on the selected household, the maximum marginal tax rate is <strong>{maxRate.toFixed(0)}%</strong> at
+                  around £{d3.format(",.0f")(maxIncome)} total household income ({rateBreakdown}).
+                </p>
+              );
+            })()}
+          </>
+        )}
       </section>
 
       {/* Combined Tax Position Section */}
       <section id="breakdown" ref={sectionRefs.breakdown} className="narrative-section">
         <h2>Tax position breakdown</h2>
-        <p>
-          The following table provides a detailed breakdown of deductions and marginal rates for a worker earning £{d3.format(",.0f")(exampleSalary)}, comparing those with a {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label || "student"} loan to those without.
-        </p>
+        {completeMtrData && completeMtrData.mtr_data && (() => {
+          // Find closest data point to exampleSalary
+          const data = completeMtrData.mtr_data;
+          const closestPoint = data.reduce((prev, curr) =>
+            Math.abs(curr.employment_income - exampleSalary) < Math.abs(prev.employment_income - exampleSalary) ? curr : prev
+          );
+          const effectivePartnerIncome = isCouple ? partnerIncome : 0;
+          const totalHouseholdIncome = closestPoint.employment_income + effectivePartnerIncome;
+          const postgradRate = showPostgrad ? (closestPoint.postgrad_marginal_rate || 0) : 0;
+          const totalMarginalWithLoan = (closestPoint.income_tax_marginal_rate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
+          const totalMarginalNoLoan = (closestPoint.income_tax_marginal_rate + closestPoint.ni_marginal_rate + closestPoint.uc_marginal_rate) * 100;
+          const marginalDiff = totalMarginalWithLoan - totalMarginalNoLoan;
 
-        <div className="tax-position-box">
-        {/* Marginal Rate Comparison */}
-        <div className="marginal-rate-row">
-          <div className="marginal-rate-item">
-            <div className="marginal-rate-value">{(marginalWithLoan.totalRate * 100).toFixed(0)}%</div>
-            <div className="marginal-rate-label">
-              Marginal rate (with loan)
-              <span className="info-icon-wrapper">
-                <span className="info-icon">i</span>
-                <span className="info-tooltip">
-                  The percentage taken from each additional pound earned, including income tax, National Insurance, and student loan repayments.
-                </span>
-              </span>
-            </div>
-          </div>
-          <div className="marginal-rate-item">
-            <div className="marginal-rate-value">{(marginalWithoutLoan.totalRate * 100).toFixed(0)}%</div>
-            <div className="marginal-rate-label">
-              Marginal rate (no loan)
-              <span className="info-icon-wrapper">
-                <span className="info-icon">i</span>
-                <span className="info-tooltip">
-                  The percentage taken from each additional pound earned, including only income tax and National Insurance.
-                </span>
-              </span>
-            </div>
-          </div>
-          <div className="marginal-rate-item highlight">
-            <div className="marginal-rate-value">{hasLoan ? `+${marginalDiff.toFixed(0)}pp` : "—"}</div>
-            <div className="marginal-rate-label">
-              Difference
-              <span className="info-icon-wrapper">
-                <span className="info-icon light">i</span>
-                <span className="info-tooltip">
-                  The additional percentage points (pp) deducted due to student loan repayments. This is the 9% repayment rate applied above the threshold.
-                </span>
-              </span>
-            </div>
-          </div>
-        </div>
+          return (
+            <>
+              <p>
+                The following table provides a detailed breakdown for the household head earning £{d3.format(",.0f")(exampleSalary)} (total household income: £{d3.format(",.0f")(totalHouseholdIncome)}).
+              </p>
 
-        {/* Deductions Breakdown */}
-        <div className="deductions-row">
-          <div className="deductions-column">
-            <h4>With student loan</h4>
-            <div className="deduction-item">
-              <span>Gross income</span>
-              <span>£{d3.format(",.0f")(exampleSalary)}</span>
-            </div>
-            <div className="deduction-item">
-              <span style={{ color: COLORS.incomeTax }}>Income tax</span>
-              <span>−£{d3.format(",.0f")(withLoan.incomeTax)}</span>
-            </div>
-            <div className="deduction-item">
-              <span style={{ color: COLORS.ni }}>National Insurance</span>
-              <span>−£{d3.format(",.0f")(withLoan.ni)}</span>
-            </div>
-            {hasLoan && (
-              <div className="deduction-item">
-                <span style={{ color: COLORS.studentLoan }}>Student loan</span>
-                <span>−£{d3.format(",.0f")(withLoan.studentLoan)}</span>
+              <div className="tax-position-box">
+                {/* Marginal Rate Comparison */}
+                <div className="marginal-rate-row">
+                  <div className="marginal-rate-item">
+                    <div className="marginal-rate-value">{totalMarginalWithLoan.toFixed(0)}%</div>
+                    <div className="marginal-rate-label">Marginal rate (with loan)</div>
+                  </div>
+                  <div className="marginal-rate-item">
+                    <div className="marginal-rate-value">{totalMarginalNoLoan.toFixed(0)}%</div>
+                    <div className="marginal-rate-label">Marginal rate (no loan)</div>
+                  </div>
+                  <div className="marginal-rate-item highlight">
+                    <div className="marginal-rate-value">{marginalDiff > 0 ? `+${marginalDiff.toFixed(0)}pp` : "—"}</div>
+                    <div className="marginal-rate-label">Difference</div>
+                  </div>
+                </div>
+
+                {/* Deductions Breakdown */}
+                <div className="deductions-row">
+                  <div className="deductions-column">
+                    <h4>Annual amounts</h4>
+                    <div className="deduction-item">
+                      <span>Gross income (head)</span>
+                      <span>£{d3.format(",.0f")(closestPoint.employment_income)}</span>
+                    </div>
+                    <div className="deduction-item">
+                      <span style={{ color: COLORS.incomeTax }}>Income tax</span>
+                      <span>−£{d3.format(",.0f")(closestPoint.income_tax)}</span>
+                    </div>
+                    <div className="deduction-item">
+                      <span style={{ color: COLORS.ni }}>National Insurance</span>
+                      <span>−£{d3.format(",.0f")(closestPoint.national_insurance)}</span>
+                    </div>
+                    {closestPoint.student_loan_repayment > 0 && (
+                      <div className="deduction-item">
+                        <span style={{ color: COLORS.studentLoan }}>Student loan</span>
+                        <span>−£{d3.format(",.0f")(closestPoint.student_loan_repayment)}</span>
+                      </div>
+                    )}
+                    {closestPoint.universal_credit > 0 && (
+                      <div className="deduction-item">
+                        <span style={{ color: COLORS.ucTaper }}>Universal Credit</span>
+                        <span>+£{d3.format(",.0f")(closestPoint.universal_credit)}</span>
+                      </div>
+                    )}
+                    <div className="deduction-item net">
+                      <span>Household net income</span>
+                      <span className="net-value">£{d3.format(",.0f")(closestPoint.household_net_income)}</span>
+                    </div>
+                  </div>
+
+                  <div className="deductions-column">
+                    <h4>Marginal rates breakdown</h4>
+                    <div className="deduction-item">
+                      <span style={{ color: COLORS.incomeTax }}>Income tax</span>
+                      <span>{(closestPoint.income_tax_marginal_rate * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="deduction-item">
+                      <span style={{ color: COLORS.ni }}>National Insurance</span>
+                      <span>{(closestPoint.ni_marginal_rate * 100).toFixed(0)}%</span>
+                    </div>
+                    {closestPoint.student_loan_marginal_rate > 0.01 && (
+                      <div className="deduction-item">
+                        <span style={{ color: COLORS.studentLoan }}>Student loan</span>
+                        <span>{(closestPoint.student_loan_marginal_rate * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                    {showPostgrad && postgradRate > 0.01 && (
+                      <div className="deduction-item">
+                        <span style={{ color: COLORS.postgradLoan }}>Postgrad loan</span>
+                        <span>{(postgradRate * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                    {closestPoint.uc_marginal_rate > 0.01 && (
+                      <div className="deduction-item">
+                        <span style={{ color: COLORS.ucTaper }}>UC taper</span>
+                        <span>{(closestPoint.uc_marginal_rate * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                    <div className="deduction-item total">
+                      <span>Total marginal rate</span>
+                      <span>{totalMarginalWithLoan.toFixed(0)}%</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-            {showPostgrad && (
-              <div className="deduction-item">
-                <span style={{ color: COLORS.postgradLoan }}>Postgrad loan</span>
-                <span>−£{d3.format(",.0f")(withLoan.postgradLoan)}</span>
-              </div>
-            )}
-            <div className="deduction-item total">
-              <span>Total deductions</span>
-              <span>−£{d3.format(",.0f")(withLoan.totalDeductions)}</span>
-            </div>
-            <div className="deduction-item net">
-              <span>Net income</span>
-              <span className="net-value">£{d3.format(",.0f")(withLoan.netIncome)}</span>
-            </div>
-          </div>
-
-          <div className="deductions-column">
-            <h4>Without student loan</h4>
-            <div className="deduction-item">
-              <span>Gross income</span>
-              <span>£{d3.format(",.0f")(exampleSalary)}</span>
-            </div>
-            <div className="deduction-item">
-              <span style={{ color: COLORS.incomeTax }}>Income tax</span>
-              <span>−£{d3.format(",.0f")(withoutLoan.incomeTax)}</span>
-            </div>
-            <div className="deduction-item">
-              <span style={{ color: COLORS.ni }}>National Insurance</span>
-              <span>−£{d3.format(",.0f")(withoutLoan.ni)}</span>
-            </div>
-            <div className="deduction-item total">
-              <span>Total deductions</span>
-              <span>−£{d3.format(",.0f")(withoutLoan.totalDeductions)}</span>
-            </div>
-            <div className="deduction-item net">
-              <span>Net income</span>
-              <span className="net-value">£{d3.format(",.0f")(withoutLoan.netIncome)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Summary Stats */}
-        {hasLoan && (
-          <div className="summary-row">
-            <div className="summary-stat">
-              <span className="summary-stat-label">
-                Annual repayment
-                <span className="info-icon-wrapper">
-                  <span className="info-icon">i</span>
-                  <span className="info-tooltip">
-                    Total student loan repayment per year, calculated as 9% of income above the repayment threshold.
-                  </span>
-                </span>
-              </span>
-              <span className="summary-stat-value" style={{ color: COLORS.studentLoan }}>£{d3.format(",.0f")(annualRepayment)}</span>
-            </div>
-            <div className="summary-stat">
-              <span className="summary-stat-label">
-                Monthly
-                <span className="info-icon-wrapper">
-                  <span className="info-icon">i</span>
-                  <span className="info-tooltip">
-                    Monthly student loan repayment, deducted from wages by the employer through PAYE.
-                  </span>
-                </span>
-              </span>
-              <span className="summary-stat-value" style={{ color: COLORS.studentLoan }}>£{d3.format(",.0f")(annualRepayment / 12)}</span>
-            </div>
-            <div className="summary-stat">
-              <span className="summary-stat-label">
-                Effective rate (with)
-                <span className="info-icon-wrapper">
-                  <span className="info-icon">i</span>
-                  <span className="info-tooltip">
-                    Total deductions as a percentage of gross income, including income tax, NI, and student loan.
-                  </span>
-                </span>
-              </span>
-              <span className="summary-stat-value">{((withLoan.totalDeductions / exampleSalary) * 100).toFixed(1)}%</span>
-            </div>
-            <div className="summary-stat">
-              <span className="summary-stat-label">
-                Effective rate (without)
-                <span className="info-icon-wrapper">
-                  <span className="info-icon">i</span>
-                  <span className="info-tooltip">
-                    Total deductions as a percentage of gross income, including only income tax and NI.
-                  </span>
-                </span>
-              </span>
-              <span className="summary-stat-value">{((withoutLoan.totalDeductions / exampleSalary) * 100).toFixed(1)}%</span>
-            </div>
-          </div>
-        )}
-        </div>
+            </>
+          );
+        })()}
+        {!completeMtrData && <div className="api-loading">Loading tax position data...</div>}
       </section>
 
       {/* Section 2: Take-Home Impact */}
       <section id="takeHome" ref={sectionRefs.takeHome} className="narrative-section">
         <h2>Impact on take-home pay</h2>
         <p>
-          The following chart compares annual take-home pay for workers with and without student loans across the income distribution. The shaded area highlights the gap between the two scenarios.
+          The following chart compares annual household net income across the income distribution, showing the impact of student loan repayments.
         </p>
 
-        <div className="narrative-chart-container">
-          <div ref={takeHomeChartRef} className="narrative-chart"></div>
-          <div className="chart-legend">
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan</span></div>
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>With student loan</span></div>
-          </div>
-        </div>
+        {completeMtrData && completeMtrData.mtr_data && (() => {
+          const data = completeMtrData.mtr_data;
+          const effectivePartnerIncome = isCouple ? partnerIncome : 0;
 
-        <p>
-          At £{d3.format(",.0f")(exampleSalary)} gross income, {hasLoan ? `a worker with a ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan receives` : "a worker receives"} <strong>£{d3.format(",.0f")(withLoan.netIncome)}</strong> net
-          {hasLoan && <>, compared to <strong>£{d3.format(",.0f")(withoutLoan.netIncome)}</strong> for a worker without a loan—a difference of <strong>£{d3.format(",.0f")(annualRepayment)}</strong> per year</>}. The gap increases with income, as higher earners make larger absolute repayments.
-        </p>
+          // Find closest point to exampleSalary
+          const closestPoint = data.reduce((prev, curr) =>
+            Math.abs(curr.employment_income - exampleSalary) < Math.abs(prev.employment_income - exampleSalary) ? curr : prev
+          );
+          const totalHouseholdIncome = closestPoint.employment_income + effectivePartnerIncome;
+
+          return (
+            <>
+              <div className="narrative-chart-container">
+                <div ref={takeHomeChartRef} className="narrative-chart"></div>
+                <div className="chart-legend">
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>No student loan</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>With student loan</span></div>
+                </div>
+              </div>
+
+              <p>
+                At £{d3.format(",.0f")(totalHouseholdIncome)} total household income, the household receives <strong>£{d3.format(",.0f")(closestPoint.household_net_income)}</strong> net income with a student loan,
+                compared to <strong>£{d3.format(",.0f")(closestPoint.household_net_income + closestPoint.student_loan_repayment)}</strong> without
+                {closestPoint.student_loan_repayment > 0 && <>—a difference of <strong>£{d3.format(",.0f")(closestPoint.student_loan_repayment)}</strong> per year</>}
+                {closestPoint.universal_credit > 0 && <> (includes £{d3.format(",.0f")(closestPoint.universal_credit)} Universal Credit)</>}.
+              </p>
+            </>
+          );
+        })()}
+        {!completeMtrData && <div className="api-loading">Loading take-home data...</div>}
       </section>
 
       {/* Section 3: Repayment timeline */}
       <section id="repaymentTimeline" ref={sectionRefs.repaymentTimeline} className="narrative-section">
         <h2>Repayment timeline</h2>
         <p>
-          The following chart shows how marginal deduction rates change over the life of the loan based on years since graduation.
+          The following chart shows how marginal tax rates change over the life of the loan based on years since graduation.
           {hasLoan && yearsSinceGraduation === 0 && ` With a graduation year of ${graduationYear}, you are starting repayment this year.`}
           {hasLoan && yearsSinceGraduation > 0 && ` With a graduation year of ${graduationYear}, you are currently ${yearsSinceGraduation} ${yearsSinceGraduation === 1 ? 'year' : 'years'} into repayment.`}
           {hasLoan && yearsSinceGraduation < 0 && ` With a graduation year of ${graduationYear}, repayments will begin in ${Math.abs(yearsSinceGraduation)} ${Math.abs(yearsSinceGraduation) === 1 ? 'year' : 'years'}.`}
