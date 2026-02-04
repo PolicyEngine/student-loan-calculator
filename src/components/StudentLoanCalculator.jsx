@@ -302,6 +302,7 @@ export default function StudentLoanCalculator() {
   const [isCouple, setIsCouple] = useState(false);
   const [partnerIncome, setPartnerIncome] = useState(0);
   const [householdExpanded, setHouseholdExpanded] = useState(false);
+  const [lifetimeViewMode, setLifetimeViewMode] = useState('cumulative'); // 'cumulative' or 'annual'
   const [completeMtrData, setCompleteMtrData] = useState(null);
   const [completeMtrLoading, setCompleteMtrLoading] = useState(false);
   const [completeMtrError, setCompleteMtrError] = useState(null);
@@ -334,7 +335,6 @@ export default function StudentLoanCalculator() {
     overview: useRef(null),
     breakdown: useRef(null),
     marginalRates: useRef(null),
-    completeMtr: useRef(null),
     takeHome: useRef(null),
     repaymentTimeline: useRef(null),
     lifetime: useRef(null),
@@ -342,8 +342,7 @@ export default function StudentLoanCalculator() {
 
   const sections = [
     { id: "overview", label: "Overview" },
-    { id: "marginalRates", label: "Marginal rates" },
-    { id: "completeMtr", label: "With UC" },
+    { id: "marginalRates", label: "MTR" },
     { id: "breakdown", label: "Breakdown" },
     { id: "takeHome", label: "Take-home" },
     { id: "repaymentTimeline", label: "Timeline" },
@@ -1008,7 +1007,7 @@ export default function StudentLoanCalculator() {
                 ${slRow}
                 ${postgradRow}
               </div>
-              <div class="tooltip-row tooltip-total"><span>Total marginal rate</span><span style="font-weight:700">${d.totalRate.toFixed(0)}%</span></div>`);
+              <div class="tooltip-row tooltip-total"><span>Marginal tax rate</span><span style="font-weight:700">${d.totalRate.toFixed(0)}%</span></div>`);
         })
         .on("mouseout", function () {
           barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
@@ -1026,7 +1025,7 @@ export default function StudentLoanCalculator() {
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
   }, [repaymentTimelineData, paramsLoaded, yearsSinceGraduation, writeoffYears, selectedPlan, selectedYear, graduationYear]);
 
-  // Chart 4: Lifetime Repayment Analysis (stacked bars)
+  // Chart 4: Lifetime Repayment Analysis (stacked bars or annual bars)
   useEffect(() => {
     if (!lifetimeChartRef.current || !paramsLoaded || !lifetimeData.length) return;
 
@@ -1051,7 +1050,11 @@ export default function StudentLoanCalculator() {
       calendarYear: graduationYear + d.year
     }));
     const maxYear = Math.max(...barData.map(d => d.year));
-    const maxValue = Math.max(...barData.map(d => d.totalRepaid + d.remainingBalance));
+
+    // Calculate max value based on view mode
+    const maxValue = lifetimeViewMode === 'cumulative'
+      ? Math.max(...barData.map(d => d.totalRepaid + d.remainingBalance))
+      : Math.max(...barData.map(d => d.annualRepayment));
 
     const x = d3.scaleBand().domain(barData.map(d => d.year)).range([0, width]).padding(0.15);
     const y = d3.scaleLinear().domain([0, maxValue * 1.1]).range([height, 0]);
@@ -1060,67 +1063,107 @@ export default function StudentLoanCalculator() {
 
     const tooltip = d3.select(tooltipRef.current);
 
-    // Stacked bars for each year
-    barData.forEach((d) => {
-      const barX = x(d.year);
-      const barWidth = x.bandwidth();
-      const barGroup = g.append("g").attr("class", "bar-group");
+    if (lifetimeViewMode === 'cumulative') {
+      // Stacked bars for cumulative view
+      barData.forEach((d) => {
+        const barX = x(d.year);
+        const barWidth = x.bandwidth();
+        const barGroup = g.append("g").attr("class", "bar-group");
 
-      // Total repaid bar (bottom - positive, shown as teal)
-      const repaidHeight = y(0) - y(d.totalRepaid);
-      barGroup.append("rect")
-        .attr("x", barX)
-        .attr("y", y(d.totalRepaid))
-        .attr("width", barWidth)
-        .attr("height", repaidHeight)
-        .attr("fill", COLORS.primary);
-
-      // Remaining balance bar (stacked on top - shown as amber)
-      const balanceHeight = y(0) - y(d.remainingBalance);
-      barGroup.append("rect")
-        .attr("x", barX)
-        .attr("y", y(d.totalRepaid) - balanceHeight)
-        .attr("width", barWidth)
-        .attr("height", balanceHeight)
-        .attr("fill", COLORS.studentLoan);
-
-      // Write-off indicator for final year
-      if (d.writeOff > 0) {
+        // Total repaid bar (bottom - positive, shown as teal)
+        const repaidHeight = y(0) - y(d.totalRepaid);
         barGroup.append("rect")
           .attr("x", barX)
-          .attr("y", y(d.totalRepaid) - balanceHeight - 3)
+          .attr("y", y(d.totalRepaid))
           .attr("width", barWidth)
-          .attr("height", 3)
-          .attr("fill", COLORS.postgradLoan);
-      }
+          .attr("height", repaidHeight)
+          .attr("fill", COLORS.primary);
 
-      // Invisible overlay for mouse interaction
-      barGroup.append("rect")
-        .attr("x", barX)
-        .attr("y", 0)
-        .attr("width", barWidth)
-        .attr("height", height)
-        .attr("fill", "transparent")
-        .style("cursor", "pointer")
-        .on("mouseover", function(event) {
-          barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
-          const writeOffRow = d.writeOff > 0 ? `<div class="tooltip-row" style="color:${COLORS.postgradLoan}"><span>● Written off</span><span style="font-weight:600">£${d3.format(",.0f")(d.writeOff)}</span></div>` : '';
-          tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
-            .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
-              <div class="tooltip-section">
-                <div class="tooltip-row"><span>Salary</span><span style="font-weight:600">£${d3.format(",.0f")(d.salary)}</span></div>
-                <div class="tooltip-row"><span>Annual repayment</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepayment)}</span></div>
-                <div class="tooltip-row"><span>Interest charged</span><span style="font-weight:600">£${d3.format(",.0f")(d.interestCharge)}</span></div>
-              </div>
-              <div class="tooltip-row"><span style="color:${COLORS.primary}">● Total repaid</span><span style="font-weight:600">£${d3.format(",.0f")(d.totalRepaid)}</span></div>
-              <div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Balance remaining</span><span style="font-weight:600">£${d3.format(",.0f")(d.remainingBalance)}</span></div>
-              ${writeOffRow}`);
-        })
-        .on("mouseout", function() {
-          barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
-          tooltip.style("opacity", 0);
-        });
-    });
+        // Remaining balance bar (stacked on top - shown as amber)
+        const balanceHeight = y(0) - y(d.remainingBalance);
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", y(d.totalRepaid) - balanceHeight)
+          .attr("width", barWidth)
+          .attr("height", balanceHeight)
+          .attr("fill", COLORS.studentLoan);
+
+        // Write-off indicator for final year
+        if (d.writeOff > 0) {
+          barGroup.append("rect")
+            .attr("x", barX)
+            .attr("y", y(d.totalRepaid) - balanceHeight - 3)
+            .attr("width", barWidth)
+            .attr("height", 3)
+            .attr("fill", COLORS.postgradLoan);
+        }
+
+        // Invisible overlay for mouse interaction
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", 0)
+          .attr("width", barWidth)
+          .attr("height", height)
+          .attr("fill", "transparent")
+          .style("cursor", "pointer")
+          .on("mouseover", function(event) {
+            barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
+            const writeOffRow = d.writeOff > 0 ? `<div class="tooltip-row" style="color:${COLORS.postgradLoan}"><span>● Written off (year ${writeoffYears})</span><span style="font-weight:600">£${d3.format(",.0f")(d.writeOff)}</span></div>` : '';
+            tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+              .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
+                <div class="tooltip-section">
+                  <div class="tooltip-row"><span>Salary</span><span style="font-weight:600">£${d3.format(",.0f")(d.salary)}</span></div>
+                  <div class="tooltip-row"><span>Annual repayment</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepayment)}</span></div>
+                  <div class="tooltip-row"><span>Interest charged</span><span style="font-weight:600">£${d3.format(",.0f")(d.interestCharge)}</span></div>
+                </div>
+                <div class="tooltip-row"><span style="color:${COLORS.primary}">● Total repaid</span><span style="font-weight:600">£${d3.format(",.0f")(d.totalRepaid)}</span></div>
+                <div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Balance remaining</span><span style="font-weight:600">£${d3.format(",.0f")(d.remainingBalance)}</span></div>
+                ${writeOffRow}`);
+          })
+          .on("mouseout", function() {
+            barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
+            tooltip.style("opacity", 0);
+          });
+      });
+    } else {
+      // Annual view - show repayment for each year
+      barData.forEach((d) => {
+        const barX = x(d.year);
+        const barWidth = x.bandwidth();
+        const barGroup = g.append("g").attr("class", "bar-group");
+
+        // Annual repayment bar (teal)
+        const repaymentHeight = y(0) - y(d.annualRepayment);
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", y(d.annualRepayment))
+          .attr("width", barWidth)
+          .attr("height", repaymentHeight)
+          .attr("fill", COLORS.primary);
+
+        // Invisible overlay for mouse interaction
+        barGroup.append("rect")
+          .attr("x", barX)
+          .attr("y", 0)
+          .attr("width", barWidth)
+          .attr("height", height)
+          .attr("fill", "transparent")
+          .style("cursor", "pointer")
+          .on("mouseover", function(event) {
+            barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
+            tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+              .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
+                <div class="tooltip-section">
+                  <div class="tooltip-row"><span>Salary</span><span style="font-weight:600">£${d3.format(",.0f")(d.salary)}</span></div>
+                </div>
+                <div class="tooltip-row"><span style="color:${COLORS.primary}">● Annual repayment</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepayment)}</span></div>`);
+          })
+          .on("mouseout", function() {
+            barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
+            tooltip.style("opacity", 0);
+          });
+      });
+    }
 
     // Axes
     const xAxis = d3.axisBottom(x)
@@ -1130,7 +1173,7 @@ export default function StudentLoanCalculator() {
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
       .attr("font-size", "12px").attr("fill", "#64748B").text("Years since graduation");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat(d => `£${d / 1000}k`).ticks(6));
-  }, [lifetimeData, paramsLoaded, graduationYear]);
+  }, [lifetimeData, paramsLoaded, graduationYear, lifetimeViewMode, writeoffYears]);
 
   // Removed: Chart 5 (Interest Rate Impact) and Combined Repayment chart
 
@@ -1337,7 +1380,7 @@ export default function StudentLoanCalculator() {
       .attr("fill-opacity", 0.7)
       .attr("d", areaUC);
 
-    // Total marginal rate line (with loan) - sum of all components
+    // Marginal tax rate line (with loan) - sum of all components
     const lineTotal = d3.line()
       .x(d => x(getHouseholdIncome(d.employment_income)))
       .y(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0) + d.uc_marginal_rate) * 100))
@@ -1350,7 +1393,7 @@ export default function StudentLoanCalculator() {
       .attr("stroke-width", 1.5)
       .attr("d", lineTotal);
 
-    // Total marginal rate line (without loan) - sum without student loan and postgrad
+    // Marginal tax rate line (without loan) - sum without student loan and postgrad
     const lineTotalNoLoan = d3.line()
       .x(d => x(getHouseholdIncome(d.employment_income)))
       .y(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.uc_marginal_rate) * 100))
@@ -1426,7 +1469,7 @@ export default function StudentLoanCalculator() {
               ${pgRow}
               ${ucRow}
             </div>
-            <div class="tooltip-row tooltip-total"><span>Total marginal rate</span><span style="font-weight:700">${totalRate.toFixed(0)}%</span></div>
+            <div class="tooltip-row tooltip-total"><span>Marginal tax rate</span><span style="font-weight:700">${totalRate.toFixed(0)}%</span></div>
             <div class="tooltip-row"><span>Net income</span><span style="font-weight:600">£${d3.format(",.0f")(d.household_net_income)}</span></div>
             <div class="tooltip-row"><span>UC received</span><span style="font-weight:600">£${d3.format(",.0f")(d.universal_credit)}</span></div>`);
       })
@@ -1450,7 +1493,7 @@ export default function StudentLoanCalculator() {
       <section id="overview" ref={sectionRefs.overview} className="narrative-section">
         <h2>Overview</h2>
         <p>
-          This calculator analyses tax deductions for a single adult without children, excluding other forms of benefits or tax credits. It covers marginal tax rates, tax position breakdowns, take-home pay comparisons, repayment timeline analysis, and lifetime repayment projections.
+          This calculator analyses tax deductions for households, including Universal Credit where applicable. It covers marginal tax rates, tax position breakdowns, take-home pay comparisons, repayment timeline analysis, and lifetime repayment projections. Use the household information controls to adjust for couples, partner income, rent, and children.
         </p>
         <p>
           In general, graduates with student loans repay 9% of income above a threshold. In {formatTaxYear(selectedYear)}, these are £{d3.format(",.0f")(params.slPlan1Threshold)} for Plan 1, £{d3.format(",.0f")(params.slPlan2Threshold)} for Plan 2, £{d3.format(",.0f")(params.slPlan4Threshold)} for Plan 4, and £{d3.format(",.0f")(params.slPlan5Threshold)} for Plan 5. These repayments are deducted alongside income tax and National Insurance, raising the marginal rate—the percentage taken from each additional pound earned. A basic rate taxpayer with a student loan faces a 37% marginal rate (compared to 28% without), rising to 51% for higher rate taxpayers (compared to 42%). <details className="expandable-section inline-details">
@@ -1703,7 +1746,7 @@ export default function StudentLoanCalculator() {
       </section>
 
       {/* Section: Marginal Tax Rates */}
-      <section id="completeMtr" ref={sectionRefs.completeMtr} className="narrative-section">
+      <section id="marginalRates" ref={sectionRefs.marginalRates} className="narrative-section">
         <h2>Marginal tax rates by income</h2>
         <p>
           The following chart displays the composition of marginal tax rates across the income distribution.
@@ -1800,7 +1843,7 @@ export default function StudentLoanCalculator() {
                   </div>
                   <div className="marginal-rate-item highlight">
                     <div className="marginal-rate-value">{marginalDiff > 0 ? `+${marginalDiff.toFixed(0)}pp` : "—"}</div>
-                    <div className="marginal-rate-label">Difference</div>
+                    <div className="marginal-rate-label">Difference due to loan</div>
                   </div>
                 </div>
 
@@ -1867,7 +1910,7 @@ export default function StudentLoanCalculator() {
                       </div>
                     )}
                     <div className="deduction-item total">
-                      <span>Total marginal rate</span>
+                      <span>Marginal tax rate</span>
                       <span>{totalMarginalWithLoan.toFixed(0)}%</span>
                     </div>
                   </div>
@@ -1922,7 +1965,7 @@ export default function StudentLoanCalculator() {
       <section id="repaymentTimeline" ref={sectionRefs.repaymentTimeline} className="narrative-section">
         <h2>Repayment timeline</h2>
         <p>
-          The following chart shows how marginal tax rates change over the life of the loan based on years since graduation.
+          The following chart shows how the borrower's marginal tax rates change over the life of the loan based on years since graduation.
           {hasLoan && yearsSinceGraduation === 0 && ` With a graduation year of ${graduationYear}, you are starting repayment this year.`}
           {hasLoan && yearsSinceGraduation > 0 && ` With a graduation year of ${graduationYear}, you are currently ${yearsSinceGraduation} ${yearsSinceGraduation === 1 ? 'year' : 'years'} into repayment.`}
           {hasLoan && yearsSinceGraduation < 0 && ` With a graduation year of ${graduationYear}, repayments will begin in ${Math.abs(yearsSinceGraduation)} ${Math.abs(yearsSinceGraduation) === 1 ? 'year' : 'years'}.`}
@@ -1947,7 +1990,7 @@ export default function StudentLoanCalculator() {
         <section id="lifetime" ref={sectionRefs.lifetime} className="narrative-section">
           <h2>Lifetime repayment analysis</h2>
           <p>
-            The following chart projects cumulative repayments and remaining balance over the life of the loan.
+            The following chart projects the borrower's {lifetimeViewMode === 'cumulative' ? 'cumulative repayments and remaining balance' : 'annual repayments'} over the life of the loan.
             Total repayments depend on salary trajectory, the loan's interest rate, and the write-off period. {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loans are written off after <strong>{getPlanWriteoffYears(params, selectedPlan)} years</strong>.
             This analysis starts from graduation year <strong>{graduationYear}</strong>{yearsSinceGraduation === 0 ? ' (this year)' : yearsSinceGraduation > 0 ? ` (${yearsSinceGraduation} ${yearsSinceGraduation === 1 ? 'year' : 'years'} ago)` : ` (${Math.abs(yearsSinceGraduation)} ${Math.abs(yearsSinceGraduation) === 1 ? 'year' : 'years'} from now)`}.
           </p>
@@ -1956,10 +1999,30 @@ export default function StudentLoanCalculator() {
           {apiError && <div className="api-error">Error: {apiError}</div>}
 
           <div className="narrative-chart-container">
+            <div className="chart-toggle">
+              <button
+                className={`toggle-btn ${lifetimeViewMode === 'cumulative' ? 'active' : ''}`}
+                onClick={() => setLifetimeViewMode('cumulative')}
+              >
+                Cumulative
+              </button>
+              <button
+                className={`toggle-btn ${lifetimeViewMode === 'annual' ? 'active' : ''}`}
+                onClick={() => setLifetimeViewMode('annual')}
+              >
+                Annual
+              </button>
+            </div>
             <div ref={lifetimeChartRef} className="narrative-chart"></div>
             <div className="chart-legend">
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.primary }}></div><span>Total repaid</span></div>
-              <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan, opacity: 0.7 }}></div><span>Remaining balance</span></div>
+              {lifetimeViewMode === 'cumulative' ? (
+                <>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.primary }}></div><span>Total repaid</span></div>
+                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan, opacity: 0.7 }}></div><span>Remaining balance</span></div>
+                </>
+              ) : (
+                <div className="legend-item"><div className="legend-color" style={{ background: COLORS.primary }}></div><span>Annual repayment</span></div>
+              )}
             </div>
           </div>
 

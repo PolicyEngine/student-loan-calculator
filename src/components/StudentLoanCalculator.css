@@ -698,6 +698,43 @@ html {
   );
 }
 
+/* Chart Toggle Buttons */
+.chart-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.toggle-btn {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.toggle-btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.toggle-btn:hover {
+  background: #f1f5f9;
+}
+
+.toggle-btn.active {
+  background: #319795;
+  border-color: #319795;
+  color: white;
+}
+
 /* Tax Position Box - Unified Section */
 .tax-position-box {
   margin: 24px 0 0;
