@@ -1854,6 +1854,9 @@ export default function StudentLoanCalculator() {
         const willPayOff = yearsToPayoff > 0;
         const remainingAtWriteoff = lifetimeData[lifetimeData.length - 1]?.remainingBalance || 0;
 
+        // Get annual repayment amount
+        const annualRepayment = closestPoint.student_loan_repayment || 0;
+
         return (
           <section className="summary-section">
             <h2>Summary</h2>
@@ -1862,6 +1865,10 @@ export default function StudentLoanCalculator() {
                 <div className="summary-number">{rateWithLoan.toFixed(0)}%</div>
                 <div className="summary-label">Marginal rate</div>
                 <div className="summary-sublabel">(+{difference.toFixed(0)}pp from student loan)</div>
+              </div>
+              <div className="summary-card">
+                <div className="summary-number">£{d3.format(",.0f")(annualRepayment)}</div>
+                <div className="summary-label">Annual repayment</div>
               </div>
               <div className="summary-card highlight-card">
                 {willPayOff ? (
