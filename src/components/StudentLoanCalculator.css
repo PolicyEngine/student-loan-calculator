@@ -1531,14 +1531,16 @@ html {
   font-size: 3rem;
   font-weight: 700;
   color: #1e293b;
-  line-height: 1;
-  margin-bottom: 8px;
+  line-height: 1.15;
 }
 
 .summary-label {
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: #64748b;
-  font-weight: 500;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 12px;
 }
 
 .summary-sublabel {
