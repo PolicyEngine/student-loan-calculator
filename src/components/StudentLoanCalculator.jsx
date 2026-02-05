@@ -505,7 +505,7 @@ export default function StudentLoanCalculator() {
     } finally {
       setCompleteMtrLoading(false);
     }
-  }, [selectedYear, selectedPlan, numChildren, monthlyRent, isCouple, partnerIncome, showPostgrad]);
+  }, [selectedYear, selectedPlan, numChildren, monthlyRent, isCouple, partnerIncome, showPostgrad, exampleSalary]);
 
   // Debounced fetch for complete MTR
   useEffect(() => {
