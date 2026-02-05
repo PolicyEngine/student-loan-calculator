@@ -1506,6 +1506,14 @@ html {
   margin: 32px 0 48px 0;
 }
 
+.summary-section h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  letter-spacing: -0.01em;
+}
+
 .summary-cards {
   display: flex;
   gap: 16px;

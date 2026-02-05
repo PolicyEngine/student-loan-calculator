@@ -1856,6 +1856,7 @@ export default function StudentLoanCalculator() {
 
         return (
           <section className="summary-section">
+            <h2>Summary</h2>
             <div className="summary-cards">
               <div className="summary-card">
                 <div className="summary-number">{rateWithLoan.toFixed(0)}%</div>
