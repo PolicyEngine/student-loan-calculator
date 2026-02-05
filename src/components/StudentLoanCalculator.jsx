@@ -1871,6 +1871,7 @@ export default function StudentLoanCalculator() {
               <div className="summary-card">
                 <div className="summary-number">£{d3.format(",.0f")(minRepayment)} – £{d3.format(",.0f")(maxRepayment)}</div>
                 <div className="summary-label">Annual repayment</div>
+                <div className="summary-sublabel">(over loan period)</div>
               </div>
               <div className="summary-card highlight-card">
                 {willPayOff ? (
