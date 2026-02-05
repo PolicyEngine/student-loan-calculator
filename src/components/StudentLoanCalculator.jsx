@@ -1880,9 +1880,9 @@ export default function StudentLoanCalculator() {
                     </>
                   ) : (
                     <>
-                      <div className="summary-number">Never</div>
-                      <div className="summary-label">Will pay off in full</div>
-                      <div className="summary-sublabel">£{d3.format(",.0f")(remainingAtWriteoff)} written off</div>
+                      <div className="summary-number">£{d3.format(",.0f")(remainingAtWriteoff)}</div>
+                      <div className="summary-label">Written off</div>
+                      <div className="summary-sublabel">after {writeoffYears} years</div>
                     </>
                   )}
                 </div>
