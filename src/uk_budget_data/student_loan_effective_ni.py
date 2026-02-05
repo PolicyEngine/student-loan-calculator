@@ -995,6 +995,7 @@ def calculate_complete_marginal_rates(
     has_postgrad: bool = False,
     income_range: tuple[int, int] = (0, 80_000),
     num_points: int = 161,
+    exact_income: float = None,
 ) -> pd.DataFrame:
     """Calculate complete marginal tax rates including UC using PolicyEngine UK.
 
@@ -1018,6 +1019,7 @@ def calculate_complete_marginal_rates(
         partner_income: Partner's annual employment income (if couple).
         income_range: (min, max) employment income range.
         num_points: Number of income points to calculate.
+        exact_income: Optional exact income point to include in calculation.
 
     Returns:
         DataFrame with income levels and complete marginal rate breakdown.
@@ -1092,6 +1094,13 @@ def calculate_complete_marginal_rates(
     universal_credit = sim.calculate("universal_credit", year)
     household_net_income = sim.calculate("household_net_income", year)
 
+    # Get child benefit (benefit unit level)
+    child_benefit = sim.calculate("child_benefit", year)
+    child_benefit_less_tax_charge = sim.calculate("child_benefit_less_tax_charge", year)
+
+    # Get TV licence (household level)
+    tv_licence = sim.calculate("tv_licence", year)
+
     # Get person-level values and aggregate to household level
     # The axes create num_points variations, so we need to reshape and sum
     num_people = 1 + (1 if is_couple else 0) + num_children
@@ -1120,9 +1129,58 @@ def calculate_complete_marginal_rates(
     ni_marginal = np.gradient(ni, delta)
     sl_marginal = np.gradient(student_loan, delta)
 
+    # Calculate HICBC (High Income Child Benefit Charge) marginal rate
+    # HICBC is included in income_tax, so we need to separate it
+    hicbc = child_benefit - child_benefit_less_tax_charge  # Amount of CB clawed back
+    hicbc_marginal = np.gradient(hicbc, delta)  # HICBC marginal rate
+    hicbc_marginal = np.clip(hicbc_marginal, 0, 1)  # Clamp to valid range
+
+    # Calculate PA (Personal Allowance) taper marginal rate
+    # PA taper: £100k-£125,140, lose £1 PA for every £2 over £100k
+    # Instead of hardcoding 20%, derive from PolicyEngine's actual rates
+
+    # Get tax parameters to determine rate bands
+    params = get_tax_parameters(year)
+    basic_rate = params["basic_rate"]  # 0.20
+    higher_rate = params["higher_rate"]  # 0.40
+    additional_rate = params["additional_rate"]  # 0.45
+    pa_amount = params["personal_allowance"]
+    basic_threshold = pa_amount  # ~£12,570
+    higher_threshold = params["basic_rate_threshold"]  # ~£50,270 (where higher rate starts)
+    additional_threshold = params["higher_rate_threshold"]  # ~£125,140 (where additional rate starts)
+
+    # Calculate expected "pure" income tax marginal rate based on income band
+    # (without PA taper or HICBC effects)
+    expected_it_marginal = np.select(
+        [
+            employment_income <= basic_threshold,  # Below PA
+            employment_income <= higher_threshold,  # Basic rate band
+            employment_income <= additional_threshold,  # Higher rate band
+            employment_income > additional_threshold,  # Additional rate band
+        ],
+        [0.0, basic_rate, higher_rate, additional_rate],
+        default=higher_rate
+    )
+
+    # Remove HICBC from PolicyEngine's rate first
+    it_without_hicbc = income_tax_marginal - hicbc_marginal
+    it_without_hicbc = np.clip(it_without_hicbc, 0, 1)
+
+    # PA taper is the excess above expected rate (only in £100k-£125,140 range)
+    pa_taper_start = 100000
+    pa_taper_end = additional_threshold  # £125,140
+    pa_taper_marginal = np.where(
+        (employment_income > pa_taper_start) & (employment_income <= pa_taper_end),
+        np.maximum(it_without_hicbc - expected_it_marginal, 0),  # Excess above expected
+        0.0
+    )
+
+    # Use expected IT marginal rate based on tax bands (avoids gradient boundary effects)
+    # This gives clean 20%/40%/45% rates instead of transitional values like 48.6%
+    income_tax_pure_marginal = expected_it_marginal
+
     # Postgrad loan: 6% above threshold (calculated manually, not from PolicyEngine)
     # This allows having both undergrad AND postgrad loan simultaneously
-    params = get_tax_parameters(year)
     postgrad_threshold = params["sl_postgrad_threshold"]
     postgrad_rate = params["sl_postgrad_rate"]
 
@@ -1151,14 +1209,109 @@ def calculate_complete_marginal_rates(
         "national_insurance": ni,
         "student_loan_repayment": student_loan,
         "universal_credit": universal_credit,
+        "child_benefit": child_benefit,
+        "tv_licence": tv_licence,
         "household_net_income": household_net_income,
-        "income_tax_marginal_rate": income_tax_marginal,
+        "income_tax_marginal_rate": income_tax_pure_marginal,  # Pure IT without HICBC/PA taper
+        "pa_taper_marginal_rate": pa_taper_marginal,  # Personal Allowance taper rate
+        "hicbc_marginal_rate": hicbc_marginal,  # Child Benefit clawback rate
         "ni_marginal_rate": ni_marginal,
         "student_loan_marginal_rate": sl_marginal,
         "postgrad_marginal_rate": postgrad_marginal,
         "uc_marginal_rate": uc_marginal,
         "total_marginal_rate": total_marginal,
     })
+
+    # If exact_income is provided, calculate values at that exact point
+    if exact_income is not None and exact_income not in employment_income:
+        # Build situation for single-point calculation
+        exact_people = {
+            "adult": {
+                "age": {year: 30},
+                "employment_income": {year: exact_income},
+            }
+        }
+        exact_members = ["adult"]
+
+        if is_couple:
+            exact_people["partner"] = {
+                "age": {year: 30},
+                "employment_income": {year: partner_income},
+            }
+            exact_members.append("partner")
+
+        for i in range(num_children):
+            child_id = f"child_{i+1}"
+            exact_people[child_id] = {"age": {year: 5 + i * 2}}
+            exact_members.append(child_id)
+
+        if student_loan_plan and student_loan_plan != "NONE":
+            exact_people["adult"]["student_loan_plan"] = {year: student_loan_plan}
+
+        exact_situation = {
+            "people": exact_people,
+            "benunits": {"benunit": {"members": exact_members}},
+            "households": {
+                "household": {
+                    "members": exact_members,
+                    "region": {year: "LONDON"},
+                }
+            },
+        }
+
+        if monthly_rent > 0:
+            exact_situation["households"]["household"]["rent"] = {year: monthly_rent * 12}
+        if num_children > 0 or monthly_rent > 0:
+            exact_situation["benunits"]["benunit"]["would_claim_uc"] = {year: True}
+
+        exact_sim = Simulation(situation=exact_situation)
+
+        # Calculate values at exact income
+        exact_uc = exact_sim.calculate("universal_credit", year)[0]
+        exact_net = exact_sim.calculate("household_net_income", year)[0]
+        exact_cb = exact_sim.calculate("child_benefit", year)[0]
+        exact_tv = exact_sim.calculate("tv_licence", year)[0]
+
+        exact_it_raw = exact_sim.calculate("income_tax", year)
+        exact_ni_raw = exact_sim.calculate("national_insurance", year)
+        exact_sl_raw = exact_sim.calculate("student_loan_repayment", year)
+
+        exact_it = float(np.sum(exact_it_raw))
+        exact_ni = float(np.sum(exact_ni_raw))
+        exact_sl = float(np.sum(exact_sl_raw))
+
+        # Interpolate marginal rates from nearby points
+        idx = np.searchsorted(employment_income, exact_income)
+        if idx == 0:
+            idx = 1
+        elif idx >= len(employment_income):
+            idx = len(employment_income) - 1
+
+        # Use marginal rates from the closest point
+        closest_idx = idx if abs(employment_income[idx] - exact_income) < abs(employment_income[idx-1] - exact_income) else idx - 1
+
+        exact_row = pd.DataFrame([{
+            "employment_income": exact_income,
+            "income_tax": exact_it,
+            "national_insurance": exact_ni,
+            "student_loan_repayment": exact_sl,
+            "universal_credit": exact_uc,
+            "child_benefit": exact_cb,
+            "tv_licence": exact_tv,
+            "household_net_income": exact_net,
+            "income_tax_marginal_rate": income_tax_pure_marginal[closest_idx],
+            "pa_taper_marginal_rate": pa_taper_marginal[closest_idx],
+            "hicbc_marginal_rate": hicbc_marginal[closest_idx],
+            "ni_marginal_rate": ni_marginal[closest_idx],
+            "student_loan_marginal_rate": sl_marginal[closest_idx],
+            "postgrad_marginal_rate": postgrad_marginal[closest_idx],
+            "uc_marginal_rate": uc_marginal[closest_idx],
+            "total_marginal_rate": total_marginal[closest_idx],
+        }])
+
+        df = pd.concat([df, exact_row], ignore_index=True)
+        df = df.sort_values("employment_income").reset_index(drop=True)
+
     # Add scalar metadata columns
     df["num_children"] = num_children
     df["monthly_rent"] = monthly_rent

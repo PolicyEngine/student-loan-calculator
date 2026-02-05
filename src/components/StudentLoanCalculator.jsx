@@ -33,6 +33,8 @@ const COLORS = {
   studentLoan: "#F59E0B",
   postgradLoan: "#DC2626",
   ucTaper: "#0D9488", // Darker teal for UC taper
+  hicbc: "#2DD4BF", // Teal-400 for Child Benefit (HICBC)
+  paTaper: "#0F766E", // Teal-700 for Personal Allowance taper
   withLoan: "#319795",
   withoutLoan: "#9CA3AF",
   text: "#101828",
@@ -477,6 +479,7 @@ export default function StudentLoanCalculator() {
         partner_income: isCouple ? partnerIncome : 0,
         has_postgrad: showPostgrad,
         income_max: 150000,
+        exact_income: exampleSalary,
       };
 
       const response = await fetch(`${getApiUrl()}/complete-mtr`, {
@@ -490,6 +493,11 @@ export default function StudentLoanCalculator() {
       }
 
       const result = await response.json();
+      // Debug: Check if HICBC data is in the response
+      if (result.mtr_data && result.mtr_data.length > 0) {
+        console.log("Sample MTR data point:", result.mtr_data[80]);
+        console.log("Has hicbc_marginal_rate:", result.mtr_data[80].hicbc_marginal_rate);
+      }
       setCompleteMtrData(result);
     } catch (err) {
       console.error("Error fetching complete MTR data:", err);
@@ -748,11 +756,13 @@ export default function StudentLoanCalculator() {
     const effectivePartnerIncome = isCouple ? partnerIncome : 0;
 
     // Transform data to include total household income and both scenarios
+    // Note: PolicyEngine's household_net_income does NOT include student loan repayments
+    // (student loan is debt repayment, not tax), so we subtract it to get true take-home
     const chartData = data.map(d => ({
       totalIncome: d.employment_income + effectivePartnerIncome,
       headIncome: d.employment_income,
-      netWithLoan: d.household_net_income,
-      netWithoutLoan: d.household_net_income + d.student_loan_repayment, // Add back loan repayment
+      netWithLoan: d.household_net_income - d.student_loan_repayment, // True take-home after loan payment
+      netWithoutLoan: d.household_net_income, // No loan = no repayment to make
       studentLoan: d.student_loan_repayment,
       uc: d.universal_credit,
     }));
@@ -1025,154 +1035,199 @@ export default function StudentLoanCalculator() {
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
   }, [repaymentTimelineData, paramsLoaded, yearsSinceGraduation, writeoffYears, selectedPlan, selectedYear, graduationYear]);
 
+  // Track previous view mode for animation
+  const prevLifetimeViewMode = useRef(lifetimeViewMode);
+  const isAnimating = useRef(false);
+
   // Chart 4: Lifetime Repayment Analysis (stacked bars or annual bars)
   useEffect(() => {
     if (!lifetimeChartRef.current || !paramsLoaded || !lifetimeData.length) return;
 
     const container = lifetimeChartRef.current;
-    // Clear any existing content before rendering
-    container.innerHTML = "";
-    d3.select(container).selectAll("*").remove();
+    const transitionDuration = 400;
+    const isViewModeChange = prevLifetimeViewMode.current !== lifetimeViewMode;
 
-    const margin = { top: 20, right: 30, bottom: 50, left: 80 };
-    const width = container.clientWidth - margin.left - margin.right;
-    const height = 350 - margin.top - margin.bottom;
+    // Function to render the chart
+    const renderChart = () => {
+      // Clear any existing content before rendering
+      container.innerHTML = "";
+      d3.select(container).selectAll("*").remove();
 
-    const svg = d3.select(container).append("svg")
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom);
+      const margin = { top: 20, right: 30, bottom: 50, left: 80 };
+      const width = container.clientWidth - margin.left - margin.right;
+      const height = 350 - margin.top - margin.bottom;
 
-    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+      const svg = d3.select(container).append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .style("opacity", isViewModeChange ? 0 : 1);
 
-    // Filter out year 0 for bar chart, add calendar year
-    const barData = lifetimeData.filter(d => d.year > 0).map(d => ({
-      ...d,
-      calendarYear: graduationYear + d.year
-    }));
-    const maxYear = Math.max(...barData.map(d => d.year));
+      const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Calculate max value based on view mode
-    const maxValue = lifetimeViewMode === 'cumulative'
-      ? Math.max(...barData.map(d => d.totalRepaid + d.remainingBalance))
-      : Math.max(...barData.map(d => d.annualRepayment));
+      // Filter out year 0 for bar chart, add calendar year
+      const barData = lifetimeData.filter(d => d.year > 0).map(d => ({
+        ...d,
+        calendarYear: graduationYear + d.year
+      }));
+      const maxYear = Math.max(...barData.map(d => d.year));
 
-    const x = d3.scaleBand().domain(barData.map(d => d.year)).range([0, width]).padding(0.15);
-    const y = d3.scaleLinear().domain([0, maxValue * 1.1]).range([height, 0]);
+      // Calculate max value based on view mode
+      const maxValue = lifetimeViewMode === 'cumulative'
+        ? Math.max(...barData.map(d => d.totalRepaid + d.remainingBalance))
+        : Math.max(...barData.map(d => d.annualRepayment));
 
-    g.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(6));
+      const x = d3.scaleBand().domain(barData.map(d => d.year)).range([0, width]).padding(0.15);
+      const y = d3.scaleLinear().domain([0, maxValue * 1.1]).range([height, 0]);
 
-    const tooltip = d3.select(tooltipRef.current);
+      g.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(6));
 
-    if (lifetimeViewMode === 'cumulative') {
-      // Stacked bars for cumulative view
-      barData.forEach((d) => {
-        const barX = x(d.year);
-        const barWidth = x.bandwidth();
-        const barGroup = g.append("g").attr("class", "bar-group");
+      const tooltip = d3.select(tooltipRef.current);
 
-        // Total repaid bar (bottom - positive, shown as teal)
-        const repaidHeight = y(0) - y(d.totalRepaid);
-        barGroup.append("rect")
-          .attr("x", barX)
-          .attr("y", y(d.totalRepaid))
-          .attr("width", barWidth)
-          .attr("height", repaidHeight)
-          .attr("fill", COLORS.primary);
+      if (lifetimeViewMode === 'cumulative') {
+        // Stacked bars for cumulative view
+        barData.forEach((d) => {
+          const barX = x(d.year);
+          const barWidth = x.bandwidth();
+          const barGroup = g.append("g").attr("class", "bar-group");
 
-        // Remaining balance bar (stacked on top - shown as amber)
-        const balanceHeight = y(0) - y(d.remainingBalance);
-        barGroup.append("rect")
-          .attr("x", barX)
-          .attr("y", y(d.totalRepaid) - balanceHeight)
-          .attr("width", barWidth)
-          .attr("height", balanceHeight)
-          .attr("fill", COLORS.studentLoan);
-
-        // Write-off indicator for final year
-        if (d.writeOff > 0) {
+          // Total repaid bar (bottom - positive, shown as teal)
+          const repaidHeight = y(0) - y(d.totalRepaid);
           barGroup.append("rect")
             .attr("x", barX)
-            .attr("y", y(d.totalRepaid) - balanceHeight - 3)
+            .attr("y", y(d.totalRepaid))
             .attr("width", barWidth)
-            .attr("height", 3)
-            .attr("fill", COLORS.postgradLoan);
-        }
+            .attr("height", repaidHeight)
+            .attr("fill", COLORS.primary);
 
-        // Invisible overlay for mouse interaction
-        barGroup.append("rect")
-          .attr("x", barX)
-          .attr("y", 0)
-          .attr("width", barWidth)
-          .attr("height", height)
-          .attr("fill", "transparent")
-          .style("cursor", "pointer")
-          .on("mouseover", function(event) {
-            barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
-            const writeOffRow = d.writeOff > 0 ? `<div class="tooltip-row" style="color:${COLORS.postgradLoan}"><span>● Written off (year ${writeoffYears})</span><span style="font-weight:600">£${d3.format(",.0f")(d.writeOff)}</span></div>` : '';
-            tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
-              .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
-                <div class="tooltip-section">
-                  <div class="tooltip-row"><span>Salary</span><span style="font-weight:600">£${d3.format(",.0f")(d.salary)}</span></div>
-                  <div class="tooltip-row"><span>Annual repayment</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepayment)}</span></div>
-                  <div class="tooltip-row"><span>Interest charged</span><span style="font-weight:600">£${d3.format(",.0f")(d.interestCharge)}</span></div>
-                </div>
-                <div class="tooltip-row"><span style="color:${COLORS.primary}">● Total repaid</span><span style="font-weight:600">£${d3.format(",.0f")(d.totalRepaid)}</span></div>
-                <div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Balance remaining</span><span style="font-weight:600">£${d3.format(",.0f")(d.remainingBalance)}</span></div>
-                ${writeOffRow}`);
-          })
-          .on("mouseout", function() {
-            barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
-            tooltip.style("opacity", 0);
+          // Remaining balance bar (stacked on top - shown as amber)
+          const balanceHeight = y(0) - y(d.remainingBalance);
+          barGroup.append("rect")
+            .attr("x", barX)
+            .attr("y", y(d.totalRepaid) - balanceHeight)
+            .attr("width", barWidth)
+            .attr("height", balanceHeight)
+            .attr("fill", COLORS.studentLoan);
+
+          // Write-off indicator for final year
+          if (d.writeOff > 0) {
+            barGroup.append("rect")
+              .attr("x", barX)
+              .attr("y", y(d.totalRepaid) - balanceHeight - 3)
+              .attr("width", barWidth)
+              .attr("height", 3)
+              .attr("fill", COLORS.postgradLoan);
+          }
+
+          // Invisible overlay for mouse interaction
+          barGroup.append("rect")
+            .attr("x", barX)
+            .attr("y", 0)
+            .attr("width", barWidth)
+            .attr("height", height)
+            .attr("fill", "transparent")
+            .style("cursor", "pointer")
+            .on("mouseover", function(event) {
+              barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
+              const writeOffRow = d.writeOff > 0 ? `<div class="tooltip-row" style="color:${COLORS.postgradLoan}"><span>● Written off (year ${writeoffYears})</span><span style="font-weight:600">£${d3.format(",.0f")(d.writeOff)}</span></div>` : '';
+              tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+                .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
+                  <div class="tooltip-section">
+                    <div class="tooltip-row"><span>Salary</span><span style="font-weight:600">£${d3.format(",.0f")(d.salary)}</span></div>
+                    <div class="tooltip-row"><span>Annual repayment</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepayment)}</span></div>
+                    <div class="tooltip-row"><span>Interest charged</span><span style="font-weight:600">£${d3.format(",.0f")(d.interestCharge)}</span></div>
+                  </div>
+                  <div class="tooltip-row"><span style="color:${COLORS.primary}">● Total repaid</span><span style="font-weight:600">£${d3.format(",.0f")(d.totalRepaid)}</span></div>
+                  <div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Balance remaining</span><span style="font-weight:600">£${d3.format(",.0f")(d.remainingBalance)}</span></div>
+                  ${writeOffRow}`);
+            })
+            .on("mouseout", function() {
+              barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
+              tooltip.style("opacity", 0);
+            });
+        });
+      } else {
+        // Annual view - show repayment for each year
+        barData.forEach((d) => {
+          const barX = x(d.year);
+          const barWidth = x.bandwidth();
+          const barGroup = g.append("g").attr("class", "bar-group");
+
+          // Annual repayment bar (teal)
+          const repaymentHeight = y(0) - y(d.annualRepayment);
+          barGroup.append("rect")
+            .attr("x", barX)
+            .attr("y", y(d.annualRepayment))
+            .attr("width", barWidth)
+            .attr("height", repaymentHeight)
+            .attr("fill", COLORS.primary);
+
+          // Invisible overlay for mouse interaction
+          barGroup.append("rect")
+            .attr("x", barX)
+            .attr("y", 0)
+            .attr("width", barWidth)
+            .attr("height", height)
+            .attr("fill", "transparent")
+            .style("cursor", "pointer")
+            .on("mouseover", function(event) {
+              barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
+              tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
+                .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
+                  <div class="tooltip-section">
+                    <div class="tooltip-row"><span>Salary</span><span style="font-weight:600">£${d3.format(",.0f")(d.salary)}</span></div>
+                  </div>
+                  <div class="tooltip-row"><span style="color:${COLORS.primary}">● Annual repayment</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepayment)}</span></div>`);
+            })
+            .on("mouseout", function() {
+              barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
+              tooltip.style("opacity", 0);
+            });
+        });
+      }
+
+      // Axes
+      const xAxis = d3.axisBottom(x)
+        .tickValues(barData.filter(d => d.year % 5 === 0 || d.year === 1 || d.year === maxYear).map(d => d.year))
+        .tickFormat(d => `${d}`);
+      g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
+      g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
+        .attr("font-size", "12px").attr("fill", "#64748B").text("Years since graduation");
+      g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat(d => `£${d / 1000}k`).ticks(6));
+      g.append("text").attr("transform", "rotate(-90)").attr("x", -height / 2).attr("y", -50).attr("text-anchor", "middle")
+        .attr("font-size", "12px").attr("fill", "#64748B")
+        .text(lifetimeViewMode === 'cumulative' ? "Cumulative amount (£)" : "Annual repayment (£)");
+
+      // Fade in if this was a view mode change
+      if (isViewModeChange) {
+        svg.transition()
+          .duration(transitionDuration)
+          .style("opacity", 1);
+      }
+    };
+
+    // If view mode changed, fade out first then render new chart
+    if (isViewModeChange && !isAnimating.current) {
+      isAnimating.current = true;
+      const existingSvg = d3.select(container).select("svg");
+
+      if (existingSvg.node()) {
+        existingSvg.transition()
+          .duration(transitionDuration)
+          .style("opacity", 0)
+          .on("end", () => {
+            renderChart();
+            prevLifetimeViewMode.current = lifetimeViewMode;
+            isAnimating.current = false;
           });
-      });
-    } else {
-      // Annual view - show repayment for each year
-      barData.forEach((d) => {
-        const barX = x(d.year);
-        const barWidth = x.bandwidth();
-        const barGroup = g.append("g").attr("class", "bar-group");
-
-        // Annual repayment bar (teal)
-        const repaymentHeight = y(0) - y(d.annualRepayment);
-        barGroup.append("rect")
-          .attr("x", barX)
-          .attr("y", y(d.annualRepayment))
-          .attr("width", barWidth)
-          .attr("height", repaymentHeight)
-          .attr("fill", COLORS.primary);
-
-        // Invisible overlay for mouse interaction
-        barGroup.append("rect")
-          .attr("x", barX)
-          .attr("y", 0)
-          .attr("width", barWidth)
-          .attr("height", height)
-          .attr("fill", "transparent")
-          .style("cursor", "pointer")
-          .on("mouseover", function(event) {
-            barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
-            tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
-              .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
-                <div class="tooltip-section">
-                  <div class="tooltip-row"><span>Salary</span><span style="font-weight:600">£${d3.format(",.0f")(d.salary)}</span></div>
-                </div>
-                <div class="tooltip-row"><span style="color:${COLORS.primary}">● Annual repayment</span><span style="font-weight:600">£${d3.format(",.0f")(d.annualRepayment)}</span></div>`);
-          })
-          .on("mouseout", function() {
-            barGroup.selectAll("rect:not(:last-child)").attr("opacity", 1);
-            tooltip.style("opacity", 0);
-          });
-      });
+      } else {
+        renderChart();
+        prevLifetimeViewMode.current = lifetimeViewMode;
+        isAnimating.current = false;
+      }
+    } else if (!isAnimating.current) {
+      renderChart();
+      prevLifetimeViewMode.current = lifetimeViewMode;
     }
-
-    // Axes
-    const xAxis = d3.axisBottom(x)
-      .tickValues(barData.filter(d => d.year % 5 === 0 || d.year === 1 || d.year === maxYear).map(d => d.year))
-      .tickFormat(d => `${d}`);
-    g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
-    g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
-      .attr("font-size", "12px").attr("fill", "#64748B").text("Years since graduation");
-    g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat(d => `£${d / 1000}k`).ticks(6));
   }, [lifetimeData, paramsLoaded, graduationYear, lifetimeViewMode, writeoffYears]);
 
   // Removed: Chart 5 (Interest Rate Impact) and Combined Repayment chart
@@ -1316,6 +1371,7 @@ export default function StudentLoanCalculator() {
       .call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(10));
 
     // Stacked areas for each component (x uses total household income)
+    // Order: Income tax -> PA taper -> HICBC -> NI -> Student loan -> Postgrad -> UC taper
     const areaIT = d3.area()
       .x(d => x(getHouseholdIncome(d.employment_income)))
       .y0(y(0))
@@ -1328,10 +1384,36 @@ export default function StudentLoanCalculator() {
       .attr("fill-opacity", 0.7)
       .attr("d", areaIT);
 
-    const areaNI = d3.area()
+    // PA taper (Personal Allowance taper) area
+    const areaPATaper = d3.area()
       .x(d => x(getHouseholdIncome(d.employment_income)))
       .y0(d => y(d.income_tax_marginal_rate * 100))
-      .y1(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate) * 100))
+      .y1(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0)) * 100))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(data)
+      .attr("fill", COLORS.paTaper)
+      .attr("fill-opacity", 0.7)
+      .attr("d", areaPATaper);
+
+    // HICBC (Child Benefit) area
+    const areaHICBC = d3.area()
+      .x(d => x(getHouseholdIncome(d.employment_income)))
+      .y0(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0)) * 100))
+      .y1(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0)) * 100))
+      .curve(d3.curveStepAfter);
+
+    g.append("path")
+      .datum(data)
+      .attr("fill", COLORS.hicbc)
+      .attr("fill-opacity", 0.7)
+      .attr("d", areaHICBC);
+
+    const areaNI = d3.area()
+      .x(d => x(getHouseholdIncome(d.employment_income)))
+      .y0(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0)) * 100))
+      .y1(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0) + d.ni_marginal_rate) * 100))
       .curve(d3.curveStepAfter);
 
     g.append("path")
@@ -1342,8 +1424,8 @@ export default function StudentLoanCalculator() {
 
     const areaSL = d3.area()
       .x(d => x(getHouseholdIncome(d.employment_income)))
-      .y0(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate) * 100))
-      .y1(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate) * 100))
+      .y0(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0) + d.ni_marginal_rate) * 100))
+      .y1(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0) + d.ni_marginal_rate + d.student_loan_marginal_rate) * 100))
       .curve(d3.curveStepAfter);
 
     g.append("path")
@@ -1356,8 +1438,8 @@ export default function StudentLoanCalculator() {
     if (showPostgrad) {
       const areaPG = d3.area()
         .x(d => x(getHouseholdIncome(d.employment_income)))
-        .y0(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate) * 100))
-        .y1(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (d.postgrad_marginal_rate || 0)) * 100))
+        .y0(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0) + d.ni_marginal_rate + d.student_loan_marginal_rate) * 100))
+        .y1(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0) + d.ni_marginal_rate + d.student_loan_marginal_rate + (d.postgrad_marginal_rate || 0)) * 100))
         .curve(d3.curveStepAfter);
 
       g.append("path")
@@ -1370,8 +1452,8 @@ export default function StudentLoanCalculator() {
     // UC taper area (shown in different color from postgrad)
     const areaUC = d3.area()
       .x(d => x(getHouseholdIncome(d.employment_income)))
-      .y0(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0)) * 100))
-      .y1(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0) + d.uc_marginal_rate) * 100))
+      .y0(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0) + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0)) * 100))
+      .y1(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0) + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0) + d.uc_marginal_rate) * 100))
       .curve(d3.curveStepAfter);
 
     g.append("path")
@@ -1383,7 +1465,7 @@ export default function StudentLoanCalculator() {
     // Marginal tax rate line (with loan) - sum of all components
     const lineTotal = d3.line()
       .x(d => x(getHouseholdIncome(d.employment_income)))
-      .y(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0) + d.uc_marginal_rate) * 100))
+      .y(d => y((d.income_tax_marginal_rate + (d.pa_taper_marginal_rate || 0) + (d.hicbc_marginal_rate || 0) + d.ni_marginal_rate + d.student_loan_marginal_rate + (showPostgrad ? (d.postgrad_marginal_rate || 0) : 0) + d.uc_marginal_rate) * 100))
       .curve(d3.curveStepAfter);
 
     g.append("path")
@@ -1396,7 +1478,7 @@ export default function StudentLoanCalculator() {
     // Marginal tax rate line (without loan) - sum without student loan and postgrad
     const lineTotalNoLoan = d3.line()
       .x(d => x(getHouseholdIncome(d.employment_income)))
-      .y(d => y((d.income_tax_marginal_rate + d.ni_marginal_rate + d.uc_marginal_rate) * 100))
+      .y(d => y((d.income_tax_marginal_rate + (d.hicbc_marginal_rate || 0) + (d.pa_taper_marginal_rate || 0) + d.ni_marginal_rate + d.uc_marginal_rate) * 100))
       .curve(d3.curveStepAfter);
 
     g.append("path")
@@ -1420,7 +1502,9 @@ export default function StudentLoanCalculator() {
         .attr("stroke", COLORS.primary).attr("stroke-width", 1.5).attr("stroke-dasharray", "4,2");
 
       const postgradRate = showPostgrad ? (closestPoint.postgrad_marginal_rate || 0) : 0;
-      const totalWithLoan = (closestPoint.income_tax_marginal_rate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
+      const hicbcRate = closestPoint.hicbc_marginal_rate || 0;
+      const paTaperRate = closestPoint.pa_taper_marginal_rate || 0;
+      const totalWithLoan = (closestPoint.income_tax_marginal_rate + hicbcRate + paTaperRate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
 
       g.append("circle")
         .attr("cx", x(totalHouseholdSalary))
@@ -1456,21 +1540,27 @@ export default function StudentLoanCalculator() {
         const d = data[Math.min(i, data.length - 1)];
         const householdTotal = getHouseholdIncome(d.employment_income);
         const postgradRate = showPostgrad ? (d.postgrad_marginal_rate || 0) : 0;
-        const totalRate = (d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + postgradRate + d.uc_marginal_rate) * 100;
+        const hicbcRate = d.hicbc_marginal_rate || 0;
+        const paTaperRate = d.pa_taper_marginal_rate || 0;
+        const totalRate = (d.income_tax_marginal_rate + hicbcRate + paTaperRate + d.ni_marginal_rate + d.student_loan_marginal_rate + postgradRate + d.uc_marginal_rate) * 100;
         const ucRow = d.uc_marginal_rate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.ucTaper}">● UC taper</span><span style="font-weight:600">${(d.uc_marginal_rate * 100).toFixed(0)}%</span></div>` : '';
         const pgRow = showPostgrad && postgradRate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.postgradLoan}">● Postgrad loan</span><span style="font-weight:600">${(postgradRate * 100).toFixed(0)}%</span></div>` : '';
         const slRow = d.student_loan_marginal_rate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.studentLoan}">● Student loan</span><span style="font-weight:600">${(d.student_loan_marginal_rate * 100).toFixed(0)}%</span></div>` : '';
+        const hicbcRow = hicbcRate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.hicbc}">● Child Benefit clawback</span><span style="font-weight:600">${(hicbcRate * 100).toFixed(0)}%</span></div>` : '';
+        const paTaperRow = paTaperRate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.paTaper}">● PA taper</span><span style="font-weight:600">${(paTaperRate * 100).toFixed(0)}%</span></div>` : '';
         tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", event.clientY - 10 + "px")
           .html(`<div class="tooltip-title">Household income: £${d3.format(",.0f")(householdTotal)}</div>
             <div class="tooltip-section">
               <div class="tooltip-row"><span style="color:${COLORS.incomeTax}">● Income tax</span><span style="font-weight:600">${(d.income_tax_marginal_rate * 100).toFixed(0)}%</span></div>
+              ${hicbcRow}
+              ${paTaperRow}
               <div class="tooltip-row"><span style="color:${COLORS.ni}">● National Insurance</span><span style="font-weight:600">${(d.ni_marginal_rate * 100).toFixed(0)}%</span></div>
               ${slRow}
               ${pgRow}
               ${ucRow}
             </div>
             <div class="tooltip-row tooltip-total"><span>Marginal tax rate</span><span style="font-weight:700">${totalRate.toFixed(0)}%</span></div>
-            <div class="tooltip-row"><span>Net income</span><span style="font-weight:600">£${d3.format(",.0f")(d.household_net_income)}</span></div>
+            <div class="tooltip-row"><span>Net income</span><span style="font-weight:600">£${d3.format(",.0f")(d.household_net_income - d.student_loan_repayment)}</span></div>
             <div class="tooltip-row"><span>UC received</span><span style="font-weight:600">£${d3.format(",.0f")(d.universal_credit)}</span></div>`);
       })
       .on("mouseout", () => tooltip.style("opacity", 0));
@@ -1655,7 +1745,7 @@ export default function StudentLoanCalculator() {
             className="household-expand-button"
             onClick={() => setHouseholdExpanded(!householdExpanded)}
           >
-            <span>Enter household information</span>
+            <span>Enter household composition (for benefits calculation)</span>
             <span className={`expand-arrow ${householdExpanded ? 'expanded' : ''}`}>▼</span>
           </button>
 
@@ -1663,13 +1753,13 @@ export default function StudentLoanCalculator() {
             <div className="household-controls-expanded">
               <div className="control-item">
                 <label className="label-with-info">
-                  Household
+                  Living situation
                   <span className="info-icon-wrapper">
                     <span className="info-icon">i</span>
                     <span className="info-tooltip">
-                      <strong>Household composition</strong>
+                      <strong>Living situation</strong>
                       <br />
-                      Whether the household head has a partner. Affects UC eligibility and taper rates.
+                      Whether you live alone or with a partner. Affects UC eligibility and taper rates.
                     </span>
                   </span>
                 </label>
@@ -1750,20 +1840,52 @@ export default function StudentLoanCalculator() {
         <h2>Marginal tax rates by income</h2>
         <p>
           The following chart displays the composition of marginal tax rates across the income distribution.
-          Income tax applies at 20% (basic rate) and 40% (higher rate). National Insurance is charged at 8% on earnings above the threshold.
-          Student loan repayments are 9% of income above the plan threshold. For households receiving Universal Credit,
-          the UC taper withdraws benefits as income rises. Use the household information controls above to adjust the household composition.
+          Income tax applies at 20% (basic rate), 40% (higher rate), and 45% (additional rate above £125,140).
+          The Personal Allowance taper adds 20% between £100,000-£125,140. Child Benefit clawback adds ~7% per child between £60,000-£80,000.
+          National Insurance is 8% up to the upper earnings limit, then 2%. Student loan repayments are 9% above the plan threshold.
+          For households receiving Universal Credit, the UC taper withdraws benefits at 55% as income rises.
+          For couples, partner income is assumed fixed while the household head's income varies.
+          Use the household information controls above to adjust the household composition.
         </p>
 
-        {completeMtrLoading && <div className="api-loading">Calculating complete marginal rates...</div>}
         {completeMtrError && <div className="api-error">Error: {completeMtrError}</div>}
 
-        {completeMtrData && (
+        {completeMtrLoading ? (
+          <div className="api-loading">Calculating complete marginal rates...</div>
+        ) : completeMtrData && (
           <>
             <div className="narrative-chart-container">
               <div ref={completeMtrChartRef} className="narrative-chart"></div>
               <div className="chart-legend">
                 <div className="legend-item"><div className="legend-color" style={{ background: COLORS.incomeTax }}></div><span>Income tax</span></div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ background: COLORS.hicbc }}></div>
+                  <span className="label-with-info">
+                    Child Benefit clawback
+                    <span className="info-icon-wrapper">
+                      <span className="info-icon">i</span>
+                      <span className="info-tooltip">
+                        <strong>High Income Child Benefit Charge (HICBC)</strong>
+                        <br />
+                        If you earn over £60,000, you must repay 1% of Child Benefit for every £200 above this threshold. At £80,000+, all Child Benefit is clawed back. This creates an effective ~7% marginal rate per child (e.g. ~7% for 1 child, ~12% for 2 children).
+                      </span>
+                    </span>
+                  </span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ background: COLORS.paTaper }}></div>
+                  <span className="label-with-info">
+                    PA taper
+                    <span className="info-icon-wrapper">
+                      <span className="info-icon">i</span>
+                      <span className="info-tooltip">
+                        <strong>Personal Allowance Taper</strong>
+                        <br />
+                        For income over £100,000, the £12,570 Personal Allowance is reduced by £1 for every £2 earned above this threshold. This creates an effective 60% marginal tax rate (40% higher rate + 20% from losing allowance) until the allowance is fully withdrawn at £125,140.
+                      </span>
+                    </span>
+                  </span>
+                </div>
                 <div className="legend-item"><div className="legend-color" style={{ background: COLORS.ni }}></div><span>National Insurance</span></div>
                 <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan }}></div><span>Student loan</span></div>
                 {showPostgrad && <div className="legend-item"><div className="legend-color" style={{ background: COLORS.postgradLoan }}></div><span>Postgrad loan</span></div>}
@@ -1774,33 +1896,30 @@ export default function StudentLoanCalculator() {
             </div>
 
             {(() => {
-              // Calculate max from actual displayed data (including postgrad if enabled)
+              // Show MTR breakdown at user's selected income
               const data = completeMtrData.mtr_data;
-              let maxRate = 0;
-              let maxIncome = 0;
-              let maxPoint = null;
               const effectivePartnerIncome = isCouple ? partnerIncome : 0;
-              data.forEach(d => {
-                const postgradRate = showPostgrad ? (d.postgrad_marginal_rate || 0) : 0;
-                const totalRate = (d.income_tax_marginal_rate + d.ni_marginal_rate + d.student_loan_marginal_rate + postgradRate + d.uc_marginal_rate) * 100;
-                if (totalRate > maxRate) {
-                  maxRate = totalRate;
-                  maxIncome = d.employment_income + effectivePartnerIncome;
-                  maxPoint = { ...d, postgradRate };
-                }
-              });
-              const hasUC = maxPoint && maxPoint.uc_marginal_rate > 0.01;
+              const closestPoint = data.reduce((prev, curr) =>
+                Math.abs(curr.employment_income - exampleSalary) < Math.abs(prev.employment_income - exampleSalary) ? curr : prev
+              );
+              const postgradRate = showPostgrad ? (closestPoint.postgrad_marginal_rate || 0) : 0;
+              const hicbcRate = closestPoint.hicbc_marginal_rate || 0;
+              const paTaperRate = closestPoint.pa_taper_marginal_rate || 0;
+              const totalRate = (closestPoint.income_tax_marginal_rate + paTaperRate + hicbcRate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
+              const totalHouseholdIncome = exampleSalary + effectivePartnerIncome;
+              const hasUC = closestPoint.uc_marginal_rate > 0.01;
               const rateBreakdown = [
-                `${(maxPoint?.income_tax_marginal_rate * 100).toFixed(0)}% income tax`,
-                `${(maxPoint?.ni_marginal_rate * 100).toFixed(0)}% National Insurance`,
-                maxPoint?.student_loan_marginal_rate > 0.01 ? `${(maxPoint?.student_loan_marginal_rate * 100).toFixed(0)}% student loan` : null,
-                showPostgrad && maxPoint?.postgradRate > 0.01 ? `${(maxPoint?.postgradRate * 100).toFixed(0)}% postgrad loan` : null,
-                hasUC ? `${(maxPoint?.uc_marginal_rate * 100).toFixed(0)}% UC taper` : null,
+                `${(closestPoint.income_tax_marginal_rate * 100).toFixed(0)}% income tax`,
+                paTaperRate > 0.01 ? `${(paTaperRate * 100).toFixed(0)}% PA taper` : null,
+                hicbcRate > 0.01 ? `${(hicbcRate * 100).toFixed(0)}% Child Benefit` : null,
+                `${(closestPoint.ni_marginal_rate * 100).toFixed(0)}% National Insurance`,
+                closestPoint.student_loan_marginal_rate > 0.01 ? `${(closestPoint.student_loan_marginal_rate * 100).toFixed(0)}% student loan` : null,
+                showPostgrad && postgradRate > 0.01 ? `${(postgradRate * 100).toFixed(0)}% postgrad loan` : null,
+                hasUC ? `${(closestPoint.uc_marginal_rate * 100).toFixed(0)}% UC taper` : null,
               ].filter(Boolean).join(', ');
               return (
                 <p>
-                  Based on the selected household, the maximum marginal tax rate is <strong>{maxRate.toFixed(0)}%</strong> at
-                  around £{d3.format(",.0f")(maxIncome)} total household income ({rateBreakdown}).
+                  At £{d3.format(",.0f")(totalHouseholdIncome)} total household income, the marginal tax rate is <strong>{totalRate.toFixed(0)}%</strong> ({rateBreakdown}).
                 </p>
               );
             })()}
@@ -1811,17 +1930,22 @@ export default function StudentLoanCalculator() {
       {/* Combined Tax Position Section */}
       <section id="breakdown" ref={sectionRefs.breakdown} className="narrative-section">
         <h2>Tax position breakdown</h2>
-        {completeMtrData && completeMtrData.mtr_data && (() => {
-          // Find closest data point to exampleSalary
+        {completeMtrLoading ? (
+          <div className="api-loading">Loading tax position data...</div>
+        ) : completeMtrData && completeMtrData.mtr_data && (() => {
+          // Find exact match or closest data point to exampleSalary
           const data = completeMtrData.mtr_data;
-          const closestPoint = data.reduce((prev, curr) =>
+          const exactMatch = data.find(d => d.employment_income === exampleSalary);
+          const closestPoint = exactMatch || data.reduce((prev, curr) =>
             Math.abs(curr.employment_income - exampleSalary) < Math.abs(prev.employment_income - exampleSalary) ? curr : prev
           );
           const effectivePartnerIncome = isCouple ? partnerIncome : 0;
-          const totalHouseholdIncome = closestPoint.employment_income + effectivePartnerIncome;
+          const totalHouseholdIncome = exampleSalary + effectivePartnerIncome;
           const postgradRate = showPostgrad ? (closestPoint.postgrad_marginal_rate || 0) : 0;
-          const totalMarginalWithLoan = (closestPoint.income_tax_marginal_rate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
-          const totalMarginalNoLoan = (closestPoint.income_tax_marginal_rate + closestPoint.ni_marginal_rate + closestPoint.uc_marginal_rate) * 100;
+          const hicbcRate = closestPoint.hicbc_marginal_rate || 0;
+          const paTaperRate = closestPoint.pa_taper_marginal_rate || 0;
+          const totalMarginalWithLoan = (closestPoint.income_tax_marginal_rate + hicbcRate + paTaperRate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
+          const totalMarginalNoLoan = (closestPoint.income_tax_marginal_rate + hicbcRate + paTaperRate + closestPoint.ni_marginal_rate + closestPoint.uc_marginal_rate) * 100;
           const marginalDiff = totalMarginalWithLoan - totalMarginalNoLoan;
 
           return (
@@ -1853,31 +1977,73 @@ export default function StudentLoanCalculator() {
                     <h4>Annual amounts</h4>
                     <div className="deduction-item">
                       <span>Gross income (head)</span>
-                      <span>£{d3.format(",.0f")(closestPoint.employment_income)}</span>
+                      <span>£{d3.format(",.0f")(exampleSalary)}</span>
                     </div>
+                    {isCouple && effectivePartnerIncome > 0 && (
+                      <div className="deduction-item">
+                        <span>Gross income (partner)</span>
+                        <span>£{d3.format(",.0f")(effectivePartnerIncome)}</span>
+                      </div>
+                    )}
+                    {(() => {
+                      // Calculate PA taper amount (extra tax from losing Personal Allowance)
+                      // PA taper: £100k-£125,140, lose £1 PA for every £2 over £100k
+                      const paStart = 100000;
+                      const paEnd = 125140;
+                      const personalAllowance = 12570;
+                      const headIncome = exampleSalary;
+                      let paTaperAmount = 0;
+                      if (headIncome > paStart) {
+                        const paLost = Math.min((headIncome - paStart) / 2, personalAllowance);
+                        paTaperAmount = paLost * 0.40; // Extra tax at 40% higher rate
+                      }
+                      const incomeTaxWithoutPaTaper = closestPoint.income_tax - paTaperAmount;
+                      return (
+                        <>
+                          <div className="deduction-item">
+                            <span style={{ color: COLORS.incomeTax }}>Income tax{isCouple ? ' (household)' : ''}</span>
+                            <span>−£{d3.format(",.0f")(incomeTaxWithoutPaTaper)}</span>
+                          </div>
+                          {paTaperAmount > 0 && (
+                            <div className="deduction-item">
+                              <span style={{ color: COLORS.paTaper }}>PA taper{isCouple ? ' (head)' : ''}</span>
+                              <span>−£{d3.format(",.0f")(paTaperAmount)}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     <div className="deduction-item">
-                      <span style={{ color: COLORS.incomeTax }}>Income tax</span>
-                      <span>−£{d3.format(",.0f")(closestPoint.income_tax)}</span>
-                    </div>
-                    <div className="deduction-item">
-                      <span style={{ color: COLORS.ni }}>National Insurance</span>
+                      <span style={{ color: COLORS.ni }}>National Insurance{isCouple ? ' (household)' : ''}</span>
                       <span>−£{d3.format(",.0f")(closestPoint.national_insurance)}</span>
                     </div>
                     {closestPoint.student_loan_repayment > 0 && (
                       <div className="deduction-item">
-                        <span style={{ color: COLORS.studentLoan }}>Student loan</span>
+                        <span style={{ color: COLORS.studentLoan }}>Student loan{isCouple ? ' (head)' : ''}</span>
                         <span>−£{d3.format(",.0f")(closestPoint.student_loan_repayment)}</span>
                       </div>
                     )}
                     {closestPoint.universal_credit > 0 && (
                       <div className="deduction-item">
-                        <span style={{ color: COLORS.ucTaper }}>Universal Credit</span>
+                        <span style={{ color: COLORS.primary }}>Universal Credit (household)</span>
                         <span>+£{d3.format(",.0f")(closestPoint.universal_credit)}</span>
+                      </div>
+                    )}
+                    {closestPoint.child_benefit > 0 && (
+                      <div className="deduction-item">
+                        <span style={{ color: COLORS.hicbc }}>Child Benefit (household)</span>
+                        <span>+£{d3.format(",.0f")(closestPoint.child_benefit)}</span>
+                      </div>
+                    )}
+                    {closestPoint.tv_licence > 0 && (
+                      <div className="deduction-item">
+                        <span>TV licence (household)</span>
+                        <span>−£{d3.format(",.0f")(closestPoint.tv_licence)}</span>
                       </div>
                     )}
                     <div className="deduction-item net">
                       <span>Household net income</span>
-                      <span className="net-value">£{d3.format(",.0f")(closestPoint.household_net_income)}</span>
+                      <span className="net-value">£{d3.format(",.0f")(closestPoint.household_net_income - closestPoint.student_loan_repayment)}</span>
                     </div>
                   </div>
 
@@ -1887,6 +2053,18 @@ export default function StudentLoanCalculator() {
                       <span style={{ color: COLORS.incomeTax }}>Income tax</span>
                       <span>{(closestPoint.income_tax_marginal_rate * 100).toFixed(0)}%</span>
                     </div>
+                    {(closestPoint.hicbc_marginal_rate || 0) > 0.01 && (
+                      <div className="deduction-item">
+                        <span style={{ color: COLORS.hicbc }}>Child Benefit clawback</span>
+                        <span>{((closestPoint.hicbc_marginal_rate || 0) * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                    {paTaperRate > 0.01 && (
+                      <div className="deduction-item">
+                        <span style={{ color: COLORS.paTaper }}>PA taper</span>
+                        <span>{(paTaperRate * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
                     <div className="deduction-item">
                       <span style={{ color: COLORS.ni }}>National Insurance</span>
                       <span>{(closestPoint.ni_marginal_rate * 100).toFixed(0)}%</span>
@@ -1919,17 +2097,18 @@ export default function StudentLoanCalculator() {
             </>
           );
         })()}
-        {!completeMtrData && <div className="api-loading">Loading tax position data...</div>}
       </section>
 
       {/* Section 2: Take-Home Impact */}
       <section id="takeHome" ref={sectionRefs.takeHome} className="narrative-section">
         <h2>Impact on take-home pay</h2>
         <p>
-          The following chart compares annual household net income across the income distribution, showing the impact of student loan repayments.
+          The following chart compares annual household net income across the income distribution, showing the impact of student loan repayments. For couples, partner income is assumed fixed while the household head's income varies.
         </p>
 
-        {completeMtrData && completeMtrData.mtr_data && (() => {
+        {completeMtrLoading ? (
+          <div className="api-loading">Loading take-home data...</div>
+        ) : completeMtrData && completeMtrData.mtr_data && (() => {
           const data = completeMtrData.mtr_data;
           const effectivePartnerIncome = isCouple ? partnerIncome : 0;
 
@@ -1950,15 +2129,14 @@ export default function StudentLoanCalculator() {
               </div>
 
               <p>
-                At £{d3.format(",.0f")(totalHouseholdIncome)} total household income, the household receives <strong>£{d3.format(",.0f")(closestPoint.household_net_income)}</strong> net income with a student loan,
-                compared to <strong>£{d3.format(",.0f")(closestPoint.household_net_income + closestPoint.student_loan_repayment)}</strong> without
+                At £{d3.format(",.0f")(totalHouseholdIncome)} total household income, the household receives <strong>£{d3.format(",.0f")(closestPoint.household_net_income - closestPoint.student_loan_repayment)}</strong> net income with a student loan,
+                compared to <strong>£{d3.format(",.0f")(closestPoint.household_net_income)}</strong> without
                 {closestPoint.student_loan_repayment > 0 && <>—a difference of <strong>£{d3.format(",.0f")(closestPoint.student_loan_repayment)}</strong> per year</>}
                 {closestPoint.universal_credit > 0 && <> (includes £{d3.format(",.0f")(closestPoint.universal_credit)} Universal Credit)</>}.
               </p>
             </>
           );
         })()}
-        {!completeMtrData && <div className="api-loading">Loading take-home data...</div>}
       </section>
 
       {/* Section 3: Repayment timeline */}
@@ -1995,48 +2173,53 @@ export default function StudentLoanCalculator() {
             This analysis starts from graduation year <strong>{graduationYear}</strong>{yearsSinceGraduation === 0 ? ' (this year)' : yearsSinceGraduation > 0 ? ` (${yearsSinceGraduation} ${yearsSinceGraduation === 1 ? 'year' : 'years'} ago)` : ` (${Math.abs(yearsSinceGraduation)} ${Math.abs(yearsSinceGraduation) === 1 ? 'year' : 'years'} from now)`}.
           </p>
 
-          {apiLoading && <div className="api-loading">Loading data from API...</div>}
           {apiError && <div className="api-error">Error: {apiError}</div>}
 
-          <div className="narrative-chart-container">
-            <div className="chart-toggle">
-              <button
-                className={`toggle-btn ${lifetimeViewMode === 'cumulative' ? 'active' : ''}`}
-                onClick={() => setLifetimeViewMode('cumulative')}
-              >
-                Cumulative
-              </button>
-              <button
-                className={`toggle-btn ${lifetimeViewMode === 'annual' ? 'active' : ''}`}
-                onClick={() => setLifetimeViewMode('annual')}
-              >
-                Annual
-              </button>
-            </div>
-            <div ref={lifetimeChartRef} className="narrative-chart"></div>
-            <div className="chart-legend">
-              {lifetimeViewMode === 'cumulative' ? (
-                <>
-                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.primary }}></div><span>Total repaid</span></div>
-                  <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan, opacity: 0.7 }}></div><span>Remaining balance</span></div>
-                </>
-              ) : (
-                <div className="legend-item"><div className="legend-color" style={{ background: COLORS.primary }}></div><span>Annual repayment</span></div>
-              )}
-            </div>
-          </div>
+          {apiLoading ? (
+            <div className="api-loading">Loading data from API...</div>
+          ) : (
+            <>
+              <div className="narrative-chart-container">
+                <div className="chart-toggle">
+                  <button
+                    className={`toggle-btn ${lifetimeViewMode === 'cumulative' ? 'active' : ''}`}
+                    onClick={() => setLifetimeViewMode('cumulative')}
+                  >
+                    Cumulative
+                  </button>
+                  <button
+                    className={`toggle-btn ${lifetimeViewMode === 'annual' ? 'active' : ''}`}
+                    onClick={() => setLifetimeViewMode('annual')}
+                  >
+                    Annual
+                  </button>
+                </div>
+                <div ref={lifetimeChartRef} className="narrative-chart"></div>
+                <div className="chart-legend">
+                  {lifetimeViewMode === 'cumulative' ? (
+                    <>
+                      <div className="legend-item"><div className="legend-color" style={{ background: COLORS.primary }}></div><span>Total repaid</span></div>
+                      <div className="legend-item"><div className="legend-color" style={{ background: COLORS.studentLoan, opacity: 0.7 }}></div><span>Remaining balance</span></div>
+                    </>
+                  ) : (
+                    <div className="legend-item"><div className="legend-color" style={{ background: COLORS.primary }}></div><span>Annual repayment</span></div>
+                  )}
+                </div>
+              </div>
 
-          <p>
-            With an original loan of <strong>£{d3.format(",.0f")(loanAmount)}</strong>, a starting salary of{" "}
-            <strong>£{d3.format(",.0f")(exampleSalary)}</strong>, and {(salaryGrowthRate * 100).toFixed(0)}% annual salary growth,
-            the borrower would repay a total of <strong>£{d3.format(",.0f")(lifetimeData[lifetimeData.length - 1]?.totalRepaid || 0)}</strong> over{" "}
-            <strong>{lifetimeData.findIndex(d => d.remainingBalance === 0) > 0
-              ? `${lifetimeData.findIndex(d => d.remainingBalance === 0)} years`
-              : `${getPlanWriteoffYears(params, selectedPlan)} years (write-off)`}</strong>.{" "}
-            {lifetimeData[lifetimeData.length - 1]?.remainingBalance > 0
-              ? `The remaining £${d3.format(",.0f")(lifetimeData[lifetimeData.length - 1]?.remainingBalance)} would be written off.`
-              : `The loan would be fully repaid before the ${getPlanWriteoffYears(params, selectedPlan)}-year write-off period.`}
-          </p>
+              <p>
+                With an original loan of <strong>£{d3.format(",.0f")(loanAmount)}</strong>, a starting salary of{" "}
+                <strong>£{d3.format(",.0f")(exampleSalary)}</strong>, and {(salaryGrowthRate * 100).toFixed(0)}% annual salary growth,
+                the borrower would repay a total of <strong>£{d3.format(",.0f")(lifetimeData[lifetimeData.length - 1]?.totalRepaid || 0)}</strong> over{" "}
+                <strong>{lifetimeData.findIndex(d => d.remainingBalance === 0) > 0
+                  ? `${lifetimeData.findIndex(d => d.remainingBalance === 0)} years`
+                  : `${getPlanWriteoffYears(params, selectedPlan)} years (write-off)`}</strong>.{" "}
+                {lifetimeData[lifetimeData.length - 1]?.remainingBalance > 0
+                  ? `The remaining £${d3.format(",.0f")(lifetimeData[lifetimeData.length - 1]?.remainingBalance)} would be written off.`
+                  : `The loan would be fully repaid before the ${getPlanWriteoffYears(params, selectedPlan)}-year write-off period.`}
+              </p>
+            </>
+          )}
         </section>
       )}
 

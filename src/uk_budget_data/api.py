@@ -130,6 +130,12 @@ class CompleteMTRInput(BaseModel):
         le=200000,
         description="Maximum income for analysis range",
     )
+    exact_income: float = Field(
+        default=None,
+        ge=0,
+        le=200000,
+        description="Exact income point to include in calculation (for precise values at selected income)",
+    )
 
 
 def convert_to_native(obj):
@@ -294,6 +300,7 @@ async def calculate_complete_mtr(data: CompleteMTRInput):
                 has_postgrad=data.has_postgrad,
                 income_range=(0, data.income_max),
                 num_points=161,
+                exact_income=data.exact_income,
             )
         )
 
