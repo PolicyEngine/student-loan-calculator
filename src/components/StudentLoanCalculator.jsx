@@ -1854,10 +1854,11 @@ export default function StudentLoanCalculator() {
         const willPayOff = yearsToPayoff > 0;
         const remainingAtWriteoff = lifetimeData[lifetimeData.length - 1]?.remainingBalance || 0;
 
-        // Get annual repayment range from lifetime data
+        // Get annual repayment range and average from lifetime data
         const repayments = lifetimeData.filter(d => d.annualRepayment > 0).map(d => d.annualRepayment);
         const minRepayment = repayments.length > 0 ? Math.min(...repayments) : 0;
         const maxRepayment = repayments.length > 0 ? Math.max(...repayments) : 0;
+        const avgRepayment = repayments.length > 0 ? repayments.reduce((a, b) => a + b, 0) / repayments.length : 0;
 
         return (
           <section className="summary-section">
@@ -1869,9 +1870,9 @@ export default function StudentLoanCalculator() {
                 <div className="summary-sublabel">(+{difference.toFixed(0)}pp from student loan)</div>
               </div>
               <div className="summary-card">
-                <div className="summary-number">£{d3.format(",.0f")(maxRepayment)}</div>
+                <div className="summary-number">£{d3.format(",.0f")(avgRepayment)}</div>
                 <div className="summary-label">Annual repayment</div>
-                <div className="summary-sublabel">from £{d3.format(",.0f")(minRepayment)}/yr</div>
+                <div className="summary-sublabel">£{d3.format(",.0f")(minRepayment)} to £{d3.format(",.0f")(maxRepayment)}</div>
               </div>
               <div className="summary-card highlight-card">
                 {willPayOff ? (
