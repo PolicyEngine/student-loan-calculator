@@ -1533,6 +1533,12 @@ html {
   font-weight: 500;
 }
 
+.summary-sublabel {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
 .summary-card.highlight-card {
   background: #4d9a98;
 }
@@ -1543,6 +1549,10 @@ html {
 
 .summary-card.highlight-card .summary-label {
   color: rgba(255, 255, 255, 0.9);
+}
+
+.summary-card.highlight-card .summary-sublabel {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 @media (max-width: 700px) {
