@@ -1869,7 +1869,7 @@ export default function StudentLoanCalculator() {
                 <div className="summary-label">Average annual repayment</div>
                 <div className="summary-sublabel">range: £{d3.format(",.0f")(minRepayment)} to £{d3.format(",.0f")(maxRepayment)}</div>
               </div>
-              <div className="summary-card highlight-card">
+              <div className="summary-card">
                 {willPayOff ? (
                   <>
                     <div className="summary-number">{yearsToPayoff} years</div>
@@ -1883,7 +1883,7 @@ export default function StudentLoanCalculator() {
                   </>
                 )}
               </div>
-              <div className="summary-card">
+              <div className="summary-card highlight-card">
                 <div className="summary-number">{rateWithLoan.toFixed(0)}%</div>
                 <div className="summary-label">Marginal tax rate</div>
                 <div className="summary-sublabel">(+{difference.toFixed(0)}pp from student loan)</div>
