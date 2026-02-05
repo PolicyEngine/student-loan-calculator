@@ -1836,62 +1836,66 @@ export default function StudentLoanCalculator() {
       </section>
 
       {/* Key Summary Box */}
-      {completeMtrData && completeMtrData.mtr_data && hasLoan && (() => {
-        const data = completeMtrData.mtr_data;
-        const exactMatch = data.find(d => d.employment_income === exampleSalary);
-        const closestPoint = exactMatch || data.reduce((prev, curr) =>
-          Math.abs(curr.employment_income - exampleSalary) < Math.abs(prev.employment_income - exampleSalary) ? curr : prev
-        );
-        const postgradRate = showPostgrad ? (closestPoint.postgrad_marginal_rate || 0) : 0;
-        const hicbcRate = closestPoint.hicbc_marginal_rate || 0;
-        const paTaperRate = closestPoint.pa_taper_marginal_rate || 0;
-        const rateWithLoan = (closestPoint.income_tax_marginal_rate + paTaperRate + hicbcRate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
-        const rateWithoutLoan = (closestPoint.income_tax_marginal_rate + paTaperRate + hicbcRate + closestPoint.ni_marginal_rate + closestPoint.uc_marginal_rate) * 100;
-        const difference = rateWithLoan - rateWithoutLoan;
+      {hasLoan && (
+        <section className="summary-section">
+          <h2>Loan summary</h2>
+          {completeMtrLoading ? (
+            <div className="api-loading">Calculating loan summary...</div>
+          ) : completeMtrData && completeMtrData.mtr_data && (() => {
+            const data = completeMtrData.mtr_data;
+            const exactMatch = data.find(d => d.employment_income === exampleSalary);
+            const closestPoint = exactMatch || data.reduce((prev, curr) =>
+              Math.abs(curr.employment_income - exampleSalary) < Math.abs(prev.employment_income - exampleSalary) ? curr : prev
+            );
+            const postgradRate = showPostgrad ? (closestPoint.postgrad_marginal_rate || 0) : 0;
+            const hicbcRate = closestPoint.hicbc_marginal_rate || 0;
+            const paTaperRate = closestPoint.pa_taper_marginal_rate || 0;
+            const rateWithLoan = (closestPoint.income_tax_marginal_rate + paTaperRate + hicbcRate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
+            const rateWithoutLoan = (closestPoint.income_tax_marginal_rate + paTaperRate + hicbcRate + closestPoint.ni_marginal_rate + closestPoint.uc_marginal_rate) * 100;
+            const difference = rateWithLoan - rateWithoutLoan;
 
-        // Calculate payoff projection
-        const yearsToPayoff = lifetimeData.findIndex(d => d.remainingBalance === 0);
-        const willPayOff = yearsToPayoff > 0;
-        const remainingAtWriteoff = lifetimeData[lifetimeData.length - 1]?.remainingBalance || 0;
+            // Calculate payoff projection
+            const yearsToPayoff = lifetimeData.findIndex(d => d.remainingBalance === 0);
+            const willPayOff = yearsToPayoff > 0;
+            const remainingAtWriteoff = lifetimeData[lifetimeData.length - 1]?.remainingBalance || 0;
 
-        // Get annual repayment range and average from lifetime data
-        const repayments = lifetimeData.filter(d => d.annualRepayment > 0).map(d => d.annualRepayment);
-        const minRepayment = repayments.length > 0 ? Math.min(...repayments) : 0;
-        const maxRepayment = repayments.length > 0 ? Math.max(...repayments) : 0;
-        const avgRepayment = repayments.length > 0 ? repayments.reduce((a, b) => a + b, 0) / repayments.length : 0;
+            // Get annual repayment range and average from lifetime data
+            const repayments = lifetimeData.filter(d => d.annualRepayment > 0).map(d => d.annualRepayment);
+            const minRepayment = repayments.length > 0 ? Math.min(...repayments) : 0;
+            const maxRepayment = repayments.length > 0 ? Math.max(...repayments) : 0;
+            const avgRepayment = repayments.length > 0 ? repayments.reduce((a, b) => a + b, 0) / repayments.length : 0;
 
-        return (
-          <section className="summary-section">
-            <h2>Loan summary</h2>
-            <div className="summary-cards">
-              <div className="summary-card">
-                <div className="summary-number">£{d3.format(",.0f")(avgRepayment)}</div>
-                <div className="summary-label">Average annual repayment</div>
-                <div className="summary-sublabel">range: £{d3.format(",.0f")(minRepayment)} to £{d3.format(",.0f")(maxRepayment)}</div>
+            return (
+              <div className="summary-cards">
+                <div className="summary-card">
+                  <div className="summary-number">£{d3.format(",.0f")(avgRepayment)}</div>
+                  <div className="summary-label">Average annual repayment</div>
+                  <div className="summary-sublabel">range: £{d3.format(",.0f")(minRepayment)} to £{d3.format(",.0f")(maxRepayment)}</div>
+                </div>
+                <div className="summary-card">
+                  {willPayOff ? (
+                    <>
+                      <div className="summary-number">{yearsToPayoff} years</div>
+                      <div className="summary-label">To pay off loan</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="summary-number">Never</div>
+                      <div className="summary-label">Will pay off in full</div>
+                      <div className="summary-sublabel">£{d3.format(",.0f")(remainingAtWriteoff)} written off</div>
+                    </>
+                  )}
+                </div>
+                <div className="summary-card highlight-card">
+                  <div className="summary-number">{rateWithLoan.toFixed(0)}%</div>
+                  <div className="summary-label">Marginal tax rate</div>
+                  <div className="summary-sublabel">(+{difference.toFixed(0)}pp from student loan)</div>
+                </div>
               </div>
-              <div className="summary-card">
-                {willPayOff ? (
-                  <>
-                    <div className="summary-number">{yearsToPayoff} years</div>
-                    <div className="summary-label">To pay off loan</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="summary-number">Never</div>
-                    <div className="summary-label">Will pay off in full</div>
-                    <div className="summary-sublabel">£{d3.format(",.0f")(remainingAtWriteoff)} written off</div>
-                  </>
-                )}
-              </div>
-              <div className="summary-card highlight-card">
-                <div className="summary-number">{rateWithLoan.toFixed(0)}%</div>
-                <div className="summary-label">Marginal tax rate</div>
-                <div className="summary-sublabel">(+{difference.toFixed(0)}pp from student loan)</div>
-              </div>
-            </div>
-          </section>
-        );
-      })()}
+            );
+          })()}
+        </section>
+      )}
 
       {/* Section: Marginal Tax Rates */}
       <section id="marginalRates" ref={sectionRefs.marginalRates} className="narrative-section">
