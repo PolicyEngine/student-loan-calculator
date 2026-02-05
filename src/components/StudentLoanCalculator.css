@@ -1506,13 +1506,6 @@ html {
   margin: 32px 0 48px 0;
 }
 
-.summary-section h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0 0 20px 0;
-  color: #1a1a1a;
-}
-
 .summary-cards {
   display: flex;
   gap: 16px;
@@ -1520,28 +1513,36 @@ html {
 
 .summary-card {
   flex: 1;
-  background: #f8fafc;
+  background: #f1f5f9;
   border-radius: 12px;
-  padding: 24px 28px;
-  border: 1px solid #e2e8f0;
+  padding: 32px 24px;
+  text-align: center;
 }
 
-.summary-card p {
-  margin: 0;
-  font-size: 1.15rem;
-  line-height: 1.5;
-  color: #334155;
-}
-
-.summary-card strong {
-  font-size: 1.4rem;
-  color: #0d9488;
+.summary-number {
+  font-size: 3rem;
   font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
+  margin-bottom: 8px;
 }
 
-.summary-card .highlight {
-  color: #0d9488;
+.summary-label {
+  font-size: 1rem;
+  color: #64748b;
   font-weight: 500;
+}
+
+.summary-card.highlight-card {
+  background: #4d9a98;
+}
+
+.summary-card.highlight-card .summary-number {
+  color: #ffffff;
+}
+
+.summary-card.highlight-card .summary-label {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 @media (max-width: 700px) {
@@ -1550,14 +1551,14 @@ html {
   }
 
   .summary-card {
-    padding: 20px 24px;
+    padding: 24px 20px;
   }
 
-  .summary-card p {
-    font-size: 1.05rem;
+  .summary-number {
+    font-size: 2.5rem;
   }
 
-  .summary-card strong {
-    font-size: 1.25rem;
+  .summary-label {
+    font-size: 0.9rem;
   }
 }

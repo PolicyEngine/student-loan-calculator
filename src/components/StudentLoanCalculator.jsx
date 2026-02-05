@@ -1856,17 +1856,18 @@ export default function StudentLoanCalculator() {
 
         return (
           <section className="summary-section">
-            <h2>Summary</h2>
             <div className="summary-cards">
               <div className="summary-card">
-                <p>Your marginal tax rate is <strong>{rateWithLoan.toFixed(0)}%</strong> <span className="highlight">(+{difference.toFixed(0)}pp from student loan repayments)</span>.</p>
+                <div className="summary-number">{rateWithLoan.toFixed(0)}%</div>
+                <div className="summary-label">Marginal rate (with loan)</div>
               </div>
               <div className="summary-card">
-                {willPayOff ? (
-                  <p>You are projected to <strong>pay off your loan in {yearsToPayoff} years</strong>.</p>
-                ) : (
-                  <p>You are projected to <strong>never pay off your loan in full</strong>. £{d3.format(",.0f")(remainingAtWriteoff)} will be written off after {writeoffYears} years.</p>
-                )}
+                <div className="summary-number">{rateWithoutLoan.toFixed(0)}%</div>
+                <div className="summary-label">Marginal rate (no loan)</div>
+              </div>
+              <div className="summary-card highlight-card">
+                <div className="summary-number">+{difference.toFixed(0)}pp</div>
+                <div className="summary-label">Difference due to loan</div>
               </div>
             </div>
           </section>
