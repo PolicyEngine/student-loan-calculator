@@ -55,16 +55,6 @@ html {
   position: relative;
 }
 
-.controls-panel::after {
-  content: '';
-  position: absolute;
-  bottom: -48px;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: #e5e5e5;
-}
-
 .controls-intro {
   font-size: 1.05rem;
   color: #64748b;
