@@ -1522,29 +1522,29 @@ html {
 .summary-card {
   flex: 1;
   background: #f1f5f9;
-  border-radius: 12px;
-  padding: 32px 24px;
+  border-radius: 10px;
+  padding: 20px 16px;
   text-align: center;
 }
 
 .summary-number {
-  font-size: 3rem;
+  font-size: 2.25rem;
   font-weight: 700;
   color: #1e293b;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 .summary-label {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: #64748b;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .summary-sublabel {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #94a3b8;
   margin-top: 4px;
 }
