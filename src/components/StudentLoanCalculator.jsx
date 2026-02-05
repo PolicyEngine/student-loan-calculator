@@ -1862,13 +1862,8 @@ export default function StudentLoanCalculator() {
 
         return (
           <section className="summary-section">
-            <h2>Loan Summary</h2>
+            <h2>Loan summary</h2>
             <div className="summary-cards">
-              <div className="summary-card">
-                <div className="summary-number">{rateWithLoan.toFixed(0)}%</div>
-                <div className="summary-label">Marginal tax rate</div>
-                <div className="summary-sublabel">(+{difference.toFixed(0)}pp from student loan)</div>
-              </div>
               <div className="summary-card">
                 <div className="summary-number">£{d3.format(",.0f")(avgRepayment)}</div>
                 <div className="summary-label">Average annual repayment</div>
@@ -1887,6 +1882,11 @@ export default function StudentLoanCalculator() {
                     <div className="summary-sublabel">£{d3.format(",.0f")(remainingAtWriteoff)} written off</div>
                   </>
                 )}
+              </div>
+              <div className="summary-card">
+                <div className="summary-number">{rateWithLoan.toFixed(0)}%</div>
+                <div className="summary-label">Marginal tax rate</div>
+                <div className="summary-sublabel">(+{difference.toFixed(0)}pp from student loan)</div>
               </div>
             </div>
           </section>
