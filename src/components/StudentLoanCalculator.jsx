@@ -1835,6 +1835,44 @@ export default function StudentLoanCalculator() {
         </div>
       </section>
 
+      {/* Key Summary Box */}
+      {completeMtrData && completeMtrData.mtr_data && hasLoan && (() => {
+        const data = completeMtrData.mtr_data;
+        const exactMatch = data.find(d => d.employment_income === exampleSalary);
+        const closestPoint = exactMatch || data.reduce((prev, curr) =>
+          Math.abs(curr.employment_income - exampleSalary) < Math.abs(prev.employment_income - exampleSalary) ? curr : prev
+        );
+        const postgradRate = showPostgrad ? (closestPoint.postgrad_marginal_rate || 0) : 0;
+        const hicbcRate = closestPoint.hicbc_marginal_rate || 0;
+        const paTaperRate = closestPoint.pa_taper_marginal_rate || 0;
+        const rateWithLoan = (closestPoint.income_tax_marginal_rate + paTaperRate + hicbcRate + closestPoint.ni_marginal_rate + closestPoint.student_loan_marginal_rate + postgradRate + closestPoint.uc_marginal_rate) * 100;
+        const rateWithoutLoan = (closestPoint.income_tax_marginal_rate + paTaperRate + hicbcRate + closestPoint.ni_marginal_rate + closestPoint.uc_marginal_rate) * 100;
+        const difference = rateWithLoan - rateWithoutLoan;
+
+        // Calculate payoff projection
+        const yearsToPayoff = lifetimeData.findIndex(d => d.remainingBalance === 0);
+        const willPayOff = yearsToPayoff > 0;
+        const remainingAtWriteoff = lifetimeData[lifetimeData.length - 1]?.remainingBalance || 0;
+
+        return (
+          <section className="summary-section">
+            <h2>Summary</h2>
+            <div className="summary-cards">
+              <div className="summary-card">
+                <p>Your marginal tax rate is <strong>{rateWithLoan.toFixed(0)}%</strong> <span className="highlight">(+{difference.toFixed(0)}pp from student loan repayments)</span>.</p>
+              </div>
+              <div className="summary-card">
+                {willPayOff ? (
+                  <p>You are projected to <strong>pay off your loan in {yearsToPayoff} years</strong>.</p>
+                ) : (
+                  <p>You are projected to <strong>never pay off your loan in full</strong>. £{d3.format(",.0f")(remainingAtWriteoff)} will be written off after {writeoffYears} years.</p>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
       {/* Section: Marginal Tax Rates */}
       <section id="marginalRates" ref={sectionRefs.marginalRates} className="narrative-section">
         <h2>Marginal tax rates by income</h2>

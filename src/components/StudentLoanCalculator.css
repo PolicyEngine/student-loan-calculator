@@ -1500,3 +1500,64 @@ html {
     flex: 1 1 45%;
   }
 }
+
+/* Key Summary Section */
+.summary-section {
+  margin: 32px 0 48px 0;
+}
+
+.summary-section h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+}
+
+.summary-cards {
+  display: flex;
+  gap: 16px;
+}
+
+.summary-card {
+  flex: 1;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 24px 28px;
+  border: 1px solid #e2e8f0;
+}
+
+.summary-card p {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.summary-card strong {
+  font-size: 1.4rem;
+  color: #0d9488;
+  font-weight: 700;
+}
+
+.summary-card .highlight {
+  color: #0d9488;
+  font-weight: 500;
+}
+
+@media (max-width: 700px) {
+  .summary-cards {
+    flex-direction: column;
+  }
+
+  .summary-card {
+    padding: 20px 24px;
+  }
+
+  .summary-card p {
+    font-size: 1.05rem;
+  }
+
+  .summary-card strong {
+    font-size: 1.25rem;
+  }
+}
