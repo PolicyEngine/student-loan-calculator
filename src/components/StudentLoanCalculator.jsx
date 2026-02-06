@@ -273,9 +273,9 @@ function getPlanWriteoffYears(params, plan) {
 
 // Client-side calculation functions removed - all data comes from API
 
-// API URL - uses environment variable if set, otherwise production Cloud Run URL
+// API URL - uses environment variable if set, otherwise production Modal URL
 const getApiUrl = () => {
-  return import.meta.env.VITE_API_URL || "https://student-loan-calculator-578039519715.europe-west1.run.app";
+  return import.meta.env.VITE_API_URL || "https://policyengine--student-loan-calculator-api-fastapi-app.modal.run";
 };
 
 // Format year as UK tax year (e.g., 2026 -> "2026-27")
