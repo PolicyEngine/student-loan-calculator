@@ -184,12 +184,15 @@ function generateTakeHomeData(params, plan = "plan2", hasPostgrad = false) {
 }
 
 // Generate repayment timeline data based on years since graduation
-function generateRepaymentTimelineData(salary, params, plan = "plan2", hasPostgrad = false, writeoffYears = 30) {
+// effectiveYears is the actual payoff year (if loan is paid off early) or writeoff year
+function generateRepaymentTimelineData(salary, params, plan = "plan2", hasPostgrad = false, writeoffYears = 30, effectiveYears = null) {
   const data = [];
-  // Show from year 0 (graduation) to writeoff year + a few years after
-  const maxYears = writeoffYears + 5;
+  // Use effective years if provided (loan paid off early), otherwise use writeoff years
+  const loanEndYear = effectiveYears !== null && effectiveYears > 0 ? effectiveYears : writeoffYears;
+  // Show from year 0 (graduation) to end year + a few years after
+  const maxYears = loanEndYear + 5;
   for (let year = 0; year <= maxYears; year++) {
-    const hasLoan = year < writeoffYears;
+    const hasLoan = year < loanEndYear;
     const rate = calculateMarginalRate(salary, params, hasLoan ? plan : "none", hasLoan ? hasPostgrad : false);
     data.push({
       year,
@@ -522,7 +525,6 @@ export default function StudentLoanCalculator() {
 
   const marginalRateData = useMemo(() => generateMarginalRateData(params, selectedPlan, showPostgrad), [params, selectedPlan, showPostgrad]);
   const takeHomeData = useMemo(() => generateTakeHomeData(params, selectedPlan, showPostgrad), [params, selectedPlan, showPostgrad]);
-  const repaymentTimelineData = useMemo(() => generateRepaymentTimelineData(exampleSalary, params, selectedPlan, showPostgrad, writeoffYears), [exampleSalary, params, selectedPlan, showPostgrad, writeoffYears]);
 
   // Data from API - transform to chart format (no fallbacks)
   const lifetimeData = useMemo(() => {
@@ -537,6 +539,24 @@ export default function StudentLoanCalculator() {
       writeOff: d.written_off || 0,
     }));
   }, [apiData, selectedPlan]);
+
+  // Calculate payoff projection from lifetime data
+  const yearsToPayoff = useMemo(() => {
+    if (!lifetimeData.length) return 0;
+    const payoffIndex = lifetimeData.findIndex(d => d.remainingBalance === 0);
+    return payoffIndex > 0 ? payoffIndex : 0;
+  }, [lifetimeData]);
+
+  const willPayOff = yearsToPayoff > 0;
+
+  // Effective repayment years (actual payoff or writeoff, whichever is shorter)
+  const effectiveRepaymentYears = willPayOff ? yearsToPayoff : writeoffYears;
+
+  // Repayment timeline data - use effective years for chart display
+  const repaymentTimelineData = useMemo(
+    () => generateRepaymentTimelineData(exampleSalary, params, selectedPlan, showPostgrad, writeoffYears, effectiveRepaymentYears),
+    [exampleSalary, params, selectedPlan, showPostgrad, writeoffYears, effectiveRepaymentYears]
+  );
 
   // Policy data from API
   const policyData = useMemo(() => {
@@ -900,8 +920,8 @@ export default function StudentLoanCalculator() {
 
     g.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-width).tickFormat("").ticks(8));
 
-    // Reference line at write-off year
-    const cutoffX = x(writeoffYears);
+    // Reference line at payoff/write-off year
+    const cutoffX = x(effectiveRepaymentYears);
     if (cutoffX !== undefined) {
       g.append("line")
         .attr("x1", cutoffX).attr("x2", cutoffX)
@@ -910,12 +930,12 @@ export default function StudentLoanCalculator() {
       g.append("text")
         .attr("x", cutoffX + 8).attr("y", 15)
         .attr("font-size", "11px").attr("fill", "#64748b").attr("font-weight", "500")
-        .text(`Loan written off`);
+        .text(willPayOff ? `Loan paid off` : `Loan written off`);
     }
 
     // Highlight current position (years since graduation)
     const currentX = x(yearsSinceGraduation);
-    if (currentX !== undefined && yearsSinceGraduation >= 0 && yearsSinceGraduation <= writeoffYears + 5) {
+    if (currentX !== undefined && yearsSinceGraduation >= 0 && yearsSinceGraduation <= effectiveRepaymentYears + 5) {
       g.append("line")
         .attr("x1", currentX + x.bandwidth() / 2).attr("x2", currentX + x.bandwidth() / 2)
         .attr("y1", 0).attr("y2", height)
@@ -1036,13 +1056,13 @@ export default function StudentLoanCalculator() {
 
     // X-axis with selective labels
     const xAxis = d3.axisBottom(x)
-      .tickValues(repaymentTimelineData.filter((d) => d.year % 5 === 0 || d.year === 0 || d.year === writeoffYears).map((d) => d.year))
+      .tickValues(repaymentTimelineData.filter((d) => d.year % 5 === 0 || d.year === 0 || d.year === effectiveRepaymentYears).map((d) => d.year))
       .tickFormat((d) => d);
     g.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
     g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle")
       .attr("font-size", "12px").attr("fill", "#64748B").text("Years since graduation");
     g.append("g").attr("class", "axis y-axis").call(d3.axisLeft(y).tickFormat((d) => `${d}%`).ticks(8));
-  }, [repaymentTimelineData, paramsLoaded, yearsSinceGraduation, writeoffYears, selectedPlan, selectedYear, graduationYear]);
+  }, [repaymentTimelineData, paramsLoaded, yearsSinceGraduation, writeoffYears, effectiveRepaymentYears, willPayOff, selectedPlan, selectedYear, graduationYear]);
 
   // Track previous view mode for animation
   const prevLifetimeViewMode = useRef(lifetimeViewMode);
@@ -2231,19 +2251,20 @@ export default function StudentLoanCalculator() {
           {hasLoan && yearsSinceGraduation === 0 && ` With a graduation year of ${graduationYear}, you are starting repayment this year.`}
           {hasLoan && yearsSinceGraduation > 0 && ` With a graduation year of ${graduationYear}, you are currently ${yearsSinceGraduation} ${yearsSinceGraduation === 1 ? 'year' : 'years'} into repayment.`}
           {hasLoan && yearsSinceGraduation < 0 && ` With a graduation year of ${graduationYear}, repayments will begin in ${Math.abs(yearsSinceGraduation)} ${Math.abs(yearsSinceGraduation) === 1 ? 'year' : 'years'}.`}
-          {hasLoan && ` Your ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan will be written off after ${writeoffYears} years (in ${graduationYear + writeoffYears}).`}
+          {hasLoan && willPayOff && ` Based on current projections, your ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan will be paid off in ${yearsToPayoff} years (by ${graduationYear + yearsToPayoff}).`}
+          {hasLoan && !willPayOff && ` Your ${PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan will be written off after ${writeoffYears} years (in ${graduationYear + writeoffYears}).`}
         </p>
 
         <div className="narrative-chart-container">
           <div ref={ageChartRef} className="narrative-chart"></div>
           <div className="chart-legend">
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Repaying (years 0-{writeoffYears - 1})</span></div>
-            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>Written off (year {writeoffYears}+)</span></div>
+            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withLoan }}></div><span>Repaying (years 0-{effectiveRepaymentYears - 1})</span></div>
+            <div className="legend-item"><div className="legend-color" style={{ background: COLORS.withoutLoan }}></div><span>{willPayOff ? `Paid off (year ${effectiveRepaymentYears}+)` : `Written off (year ${writeoffYears}+)`}</span></div>
           </div>
         </div>
 
         <p>
-          At £{d3.format(",.0f")(exampleSalary)}, borrowers with a {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan face a marginal rate of <strong>{(marginalWithLoan.totalRate * 100).toFixed(0)}%</strong> during repayment, dropping to <strong>{(marginalWithoutLoan.totalRate * 100).toFixed(0)}%</strong> once the loan is written off. Student loans are automatically written off after <strong>25 years</strong> for Plan 1, <strong>30 years</strong> for Plans 2 and 4, and <strong>40 years</strong> for Plan 5.
+          At £{d3.format(",.0f")(exampleSalary)}, borrowers with a {PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label} loan face a marginal rate of <strong>{(marginalWithLoan.totalRate * 100).toFixed(0)}%</strong> during repayment, dropping to <strong>{(marginalWithoutLoan.totalRate * 100).toFixed(0)}%</strong> once the loan is {willPayOff ? 'paid off' : 'written off'}. Student loans are automatically written off after <strong>25 years</strong> for Plan 1, <strong>30 years</strong> for Plans 2 and 4, and <strong>40 years</strong> for Plan 5.
         </p>
       </section>
 
