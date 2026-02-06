@@ -11,18 +11,23 @@ To run locally:
 """
 
 import modal
+from pathlib import Path
 
 app = modal.App("student-loan-calculator-api")
 
-# Create image with all dependencies
+# Create image with all dependencies and local module copied in
 image = (
-    modal.Image.debian_slim(python_version="3.12")
+    modal.Image.debian_slim(python_version="3.13")
     .pip_install(
         "fastapi",
         "pydantic",
         "numpy",
         "pandas",
-        "policyengine-uk",
+        "policyengine-uk==2.72.2",
+    )
+    .add_local_file(
+        Path(__file__).parent / "student_loan_effective_ni.py",
+        remote_path="/root/student_loan_effective_ni.py",
     )
 )
 
@@ -36,6 +41,9 @@ image = (
 @modal.asgi_app()
 def fastapi_app():
     """Serve the FastAPI app via Modal."""
+    import sys
+    sys.path.insert(0, "/root")
+
     import asyncio
     from concurrent.futures import ThreadPoolExecutor
     from functools import lru_cache
