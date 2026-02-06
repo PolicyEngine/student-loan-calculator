@@ -723,7 +723,7 @@ export default function StudentLoanCalculator() {
         const postgradRow = showPostgrad ? `<div class="tooltip-row"><span style="color:${COLORS.postgradLoan}">● Postgrad loan</span><span style="font-weight:600">${d.postgrad.toFixed(0)}%</span></div>` : '';
         // Snap tooltip Y position to the "with loan" line
         const svgRect = container.getBoundingClientRect();
-        const tooltipY = svgRect.top + margin.top + y(d.withLoan) + window.scrollY;
+        const tooltipY = svgRect.top + margin.top + y(d.withLoan);
         tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", tooltipY + "px")
           .html(`<div class="tooltip-title">£${d3.format(",.0f")(d.income)}</div>
             <div class="tooltip-section">
@@ -865,7 +865,7 @@ export default function StudentLoanCalculator() {
         const ucRow = d.uc > 0 ? `<div class="tooltip-row"><span style="color:${COLORS.ucTaper}">● UC received</span><span style="font-weight:600">+£${d3.format(",.0f")(d.uc)}</span></div>` : '';
         // Snap tooltip Y position to the "with loan" line
         const svgRect = container.getBoundingClientRect();
-        const tooltipY = svgRect.top + margin.top + y(d.netWithLoan) + window.scrollY;
+        const tooltipY = svgRect.top + margin.top + y(d.netWithLoan);
         tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", tooltipY + "px")
           .html(`<div class="tooltip-title">£${d3.format(",.0f")(d.totalIncome)} household income</div>
             <div class="tooltip-section">
@@ -1016,7 +1016,7 @@ export default function StudentLoanCalculator() {
           const statusText = d.hasLoan ? "Repaying" : "Written off";
           // Snap tooltip Y position to top of bar
           const svgRect = container.getBoundingClientRect();
-          const tooltipY = svgRect.top + margin.top + y(d.totalRate) + window.scrollY;
+          const tooltipY = svgRect.top + margin.top + y(d.totalRate);
           tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", tooltipY + "px")
             .html(`<div class="tooltip-title">Year ${d.year} (${calendarYear})</div>
               <div class="tooltip-section">
@@ -1141,7 +1141,7 @@ export default function StudentLoanCalculator() {
               // Snap tooltip Y position to top of stacked bar
               const svgRect = container.getBoundingClientRect();
               const topOfBar = Math.min(y(d.totalRepaid), y(d.remainingBalance + d.totalRepaid));
-              const tooltipY = svgRect.top + margin.top + topOfBar + window.scrollY;
+              const tooltipY = svgRect.top + margin.top + topOfBar;
               tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", tooltipY + "px")
                 .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
                   <div class="tooltip-section">
@@ -1186,7 +1186,7 @@ export default function StudentLoanCalculator() {
               barGroup.selectAll("rect:not(:last-child)").attr("opacity", 0.8);
               // Snap tooltip Y position to top of bar
               const svgRect = container.getBoundingClientRect();
-              const tooltipY = svgRect.top + margin.top + y(d.annualRepayment) + window.scrollY;
+              const tooltipY = svgRect.top + margin.top + y(d.annualRepayment);
               tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", tooltipY + "px")
                 .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
                   <div class="tooltip-section">
@@ -1329,7 +1329,7 @@ export default function StudentLoanCalculator() {
           barGroup.select("rect:first-child").attr("opacity", 0.8);
           // Snap tooltip Y position to top of bar
           const svgRect = container.getBoundingClientRect();
-          const tooltipY = svgRect.top + margin.top + y(impact) + window.scrollY;
+          const tooltipY = svgRect.top + margin.top + y(impact);
           tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", tooltipY + "px")
             .html(`<div class="tooltip-title">Year ${d.year} (${d.calendarYear})</div>
               <div class="tooltip-section">
@@ -1569,7 +1569,7 @@ export default function StudentLoanCalculator() {
         const paTaperRow = paTaperRate > 0.01 ? `<div class="tooltip-row"><span style="color:${COLORS.paTaper}">● PA taper</span><span style="font-weight:600">${(paTaperRate * 100).toFixed(0)}%</span></div>` : '';
         // Snap tooltip Y position to top of stacked area (total rate)
         const svgRect = container.getBoundingClientRect();
-        const tooltipY = svgRect.top + margin.top + y(totalRate) + window.scrollY;
+        const tooltipY = svgRect.top + margin.top + y(totalRate);
         tooltip.style("opacity", 1).style("left", event.clientX + 15 + "px").style("top", tooltipY + "px")
           .html(`<div class="tooltip-title">Household income: £${d3.format(",.0f")(householdTotal)}</div>
             <div class="tooltip-section">
