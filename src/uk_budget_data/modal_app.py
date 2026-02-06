@@ -44,6 +44,10 @@ def fastapi_app():
     import sys
     sys.path.insert(0, "/root")
 
+    # Pre-warm PolicyEngine on container start (expensive first-time init)
+    from student_loan_effective_ni import get_tax_parameters
+    get_tax_parameters(2026)  # Warm the cache
+
     import asyncio
     from concurrent.futures import ThreadPoolExecutor
     from functools import lru_cache
@@ -237,7 +241,7 @@ def fastapi_app():
                     partner_income=data.partner_income,
                     has_postgrad=data.has_postgrad,
                     income_range=(0, data.income_max),
-                    num_points=161,
+                    num_points=81,  # Reduced from 161 for faster response
                     exact_income=data.exact_income,
                 )
             )

@@ -16,12 +16,21 @@ All rates are read directly from PolicyEngine UK parameters.
 """
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 import pandas as pd
 from policyengine_uk import CountryTaxBenefitSystem, Simulation
 
 
+# Cache the TaxBenefitSystem globally - this is expensive to create
+@lru_cache(maxsize=1)
+def _get_tax_benefit_system() -> CountryTaxBenefitSystem:
+    """Get cached TaxBenefitSystem instance."""
+    return CountryTaxBenefitSystem()
+
+
+@lru_cache(maxsize=10)
 def get_tax_parameters(year: int = 2026) -> dict:
     """Load all relevant tax parameters from PolicyEngine UK.
 
@@ -31,7 +40,7 @@ def get_tax_parameters(year: int = 2026) -> dict:
     Returns:
         Dict with all tax/NI/student loan parameters.
     """
-    tbs = CountryTaxBenefitSystem()
+    tbs = _get_tax_benefit_system()
     params = tbs.parameters
     date = f"{year}-01-01"
 
@@ -1222,83 +1231,34 @@ def calculate_complete_marginal_rates(
         "total_marginal_rate": total_marginal,
     })
 
-    # If exact_income is provided, calculate values at that exact point
+    # If exact_income is provided, interpolate values from the grid (avoids expensive second simulation)
     if exact_income is not None and exact_income not in employment_income:
-        # Build situation for single-point calculation
-        exact_people = {
-            "adult": {
-                "age": {year: 30},
-                "employment_income": {year: exact_income},
-            }
-        }
-        exact_members = ["adult"]
-
-        if is_couple:
-            exact_people["partner"] = {
-                "age": {year: 30},
-                "employment_income": {year: partner_income},
-            }
-            exact_members.append("partner")
-
-        for i in range(num_children):
-            child_id = f"child_{i+1}"
-            exact_people[child_id] = {"age": {year: 5 + i * 2}}
-            exact_members.append(child_id)
-
-        if student_loan_plan and student_loan_plan != "NONE":
-            exact_people["adult"]["student_loan_plan"] = {year: student_loan_plan}
-
-        exact_situation = {
-            "people": exact_people,
-            "benunits": {"benunit": {"members": exact_members}},
-            "households": {
-                "household": {
-                    "members": exact_members,
-                    "region": {year: "LONDON"},
-                }
-            },
-        }
-
-        if monthly_rent > 0:
-            exact_situation["households"]["household"]["rent"] = {year: monthly_rent * 12}
-        if num_children > 0 or monthly_rent > 0:
-            exact_situation["benunits"]["benunit"]["would_claim_uc"] = {year: True}
-
-        exact_sim = Simulation(situation=exact_situation)
-
-        # Calculate values at exact income
-        exact_uc = exact_sim.calculate("universal_credit", year)[0]
-        exact_net = exact_sim.calculate("household_net_income", year)[0]
-        exact_cb = exact_sim.calculate("child_benefit", year)[0]
-        exact_tv = exact_sim.calculate("tv_licence", year)[0]
-
-        exact_it_raw = exact_sim.calculate("income_tax", year)
-        exact_ni_raw = exact_sim.calculate("national_insurance", year)
-        exact_sl_raw = exact_sim.calculate("student_loan_repayment", year)
-
-        exact_it = float(np.sum(exact_it_raw))
-        exact_ni = float(np.sum(exact_ni_raw))
-        exact_sl = float(np.sum(exact_sl_raw))
-
-        # Interpolate marginal rates from nearby points
+        # Find the position and interpolate
         idx = np.searchsorted(employment_income, exact_income)
         if idx == 0:
             idx = 1
         elif idx >= len(employment_income):
             idx = len(employment_income) - 1
 
-        # Use marginal rates from the closest point
+        # Linear interpolation between neighboring points
+        x0, x1 = employment_income[idx-1], employment_income[idx]
+        t = (exact_income - x0) / (x1 - x0) if x1 != x0 else 0
+
+        def interp(arr):
+            return arr[idx-1] + t * (arr[idx] - arr[idx-1])
+
+        # Use marginal rates from the closest point (they're step functions anyway)
         closest_idx = idx if abs(employment_income[idx] - exact_income) < abs(employment_income[idx-1] - exact_income) else idx - 1
 
         exact_row = pd.DataFrame([{
             "employment_income": exact_income,
-            "income_tax": exact_it,
-            "national_insurance": exact_ni,
-            "student_loan_repayment": exact_sl,
-            "universal_credit": exact_uc,
-            "child_benefit": exact_cb,
-            "tv_licence": exact_tv,
-            "household_net_income": exact_net,
+            "income_tax": interp(income_tax),
+            "national_insurance": interp(ni),
+            "student_loan_repayment": interp(student_loan),
+            "universal_credit": interp(universal_credit),
+            "child_benefit": interp(child_benefit),
+            "tv_licence": interp(tv_licence),
+            "household_net_income": interp(household_net_income),
             "income_tax_marginal_rate": income_tax_pure_marginal[closest_idx],
             "pa_taper_marginal_rate": pa_taper_marginal[closest_idx],
             "hicbc_marginal_rate": hicbc_marginal[closest_idx],
