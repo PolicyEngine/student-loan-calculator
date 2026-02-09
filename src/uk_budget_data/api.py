@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field
 from .student_loan_effective_ni import (
     get_tax_parameters,
     generate_lifetime_repayment_data,
-    generate_interest_comparison_data,
     generate_policy_comparison_data,
     calculate_complete_marginal_rates,
 )
@@ -76,6 +75,11 @@ class CalculatorInput(BaseModel):
     has_postgrad: bool = Field(
         default=False,
         description="Whether borrower has postgraduate loan",
+    )
+    postgrad_balance: float = Field(
+        default=0,
+        ge=0,
+        description="Initial postgrad loan balance (GBP)",
     )
     interest_rate: Optional[float] = Field(
         default=None,
@@ -159,14 +163,10 @@ async def calculate_student_loan(data: CalculatorInput):
 
     Returns:
         - lifetime_data: Year-by-year repayment projections
-        - interest_data: Balance comparison with/without interest
         - policy_data: Frozen vs inflation-linked threshold comparison
-        - summary: Key statistics
+        - postgrad_lifetime_data: Postgrad loan year-by-year projections
     """
     try:
-        # Get tax parameters for the specified year (cached)
-        params = get_cached_tax_parameters(data.year)
-
         # Common parameters for all calculations
         calc_params = {
             "starting_salary": data.starting_salary,
@@ -177,64 +177,50 @@ async def calculate_student_loan(data: CalculatorInput):
             "interest_rate_override": data.interest_rate,
         }
 
-        # Run all three calculations in parallel using thread pool
+        # Run calculations in parallel using thread pool
         loop = asyncio.get_event_loop()
         lifetime_future = loop.run_in_executor(
             executor, lambda: generate_lifetime_repayment_data(**calc_params)
-        )
-        interest_future = loop.run_in_executor(
-            executor, lambda: generate_interest_comparison_data(**calc_params)
         )
         policy_future = loop.run_in_executor(
             executor, lambda: generate_policy_comparison_data(**calc_params)
         )
 
+        # Conditionally run postgrad lifetime calculation
+        postgrad_future = None
+        if data.postgrad_balance > 0:
+            postgrad_future = loop.run_in_executor(
+                executor, lambda: generate_lifetime_repayment_data(
+                    starting_salary=data.starting_salary,
+                    loan_amount=data.postgrad_balance,
+                    plan="postgrad",
+                    salary_growth_rate=data.salary_growth_rate,
+                    year=data.year,
+                )
+            )
+
         # Wait for all calculations to complete
-        lifetime_df, interest_df, policy_df = await asyncio.gather(
-            lifetime_future, interest_future, policy_future
+        lifetime_df, policy_df = await asyncio.gather(
+            lifetime_future, policy_future
         )
+
+        postgrad_lifetime_df = None
+        if postgrad_future:
+            postgrad_lifetime_df = await postgrad_future
 
         # Convert DataFrames to list of dicts
         lifetime_data = lifetime_df.to_dict(orient="records") if not lifetime_df.empty else []
-        interest_data = interest_df.to_dict(orient="records") if not interest_df.empty else []
         policy_data = policy_df.to_dict(orient="records") if not policy_df.empty else []
-
-        # Calculate summary statistics from the data
-        final_lifetime = lifetime_data[-1] if lifetime_data else {}
-        final_interest = interest_data[-1] if interest_data else {}
-        final_policy = policy_data[-1] if policy_data else {}
-
-        # Get plan-specific threshold and interest rate
-        plan_thresholds = {
-            "plan1": params["sl_plan1_threshold"],
-            "plan2": params["sl_plan2_threshold"],
-            "plan4": params["sl_plan4_threshold"],
-            "plan5": params["sl_plan5_threshold"],
-        }
-        plan_interest = {
-            "plan1": params["sl_plan1_interest"],
-            "plan2": (params["sl_plan2_interest_min"] + params["sl_plan2_interest_max"]) / 2,
-            "plan4": params["sl_plan4_interest"],
-            "plan5": params["sl_plan5_interest"],
-        }
-
-        summary = {
-            "total_repaid": final_lifetime.get("total_repaid", 0),
-            "written_off": final_lifetime.get("written_off", 0),
-            "years_to_repay": final_lifetime.get("year", 0),
-            "original_loan": data.loan_amount,
-            "total_interest": final_interest.get("total_interest_paid", 0),
-            "interest_rate": plan_interest.get(data.plan, 0.06),
-            "extra_from_freeze": final_policy.get("difference", 0),
-            "threshold": plan_thresholds.get(data.plan, 0),
-            "threshold_if_linked": final_policy.get("threshold_growing", 0),
-        }
+        postgrad_lifetime_data = (
+            postgrad_lifetime_df.to_dict(orient="records")
+            if postgrad_lifetime_df is not None and not postgrad_lifetime_df.empty
+            else []
+        )
 
         return convert_to_native({
             "lifetime_data": lifetime_data,
-            "interest_data": interest_data,
             "policy_data": policy_data,
-            "summary": summary,
+            "postgrad_lifetime_data": postgrad_lifetime_data,
         })
 
     except ValueError as e:

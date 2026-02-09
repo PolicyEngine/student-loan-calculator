@@ -510,13 +510,18 @@ def generate_lifetime_repayment_data(
             "interest": params["sl_plan5_interest"],
             "writeoff": params["sl_plan5_writeoff"],
         },
+        "postgrad": {
+            "threshold": params["sl_postgrad_threshold"],
+            "interest": 0.06,  # Approximate RPI+3%
+            "writeoff": 30,
+        },
     }
 
     config = plan_config.get(plan, plan_config["plan2"])
     base_threshold = config["threshold"]
     interest_rate = interest_rate_override if interest_rate_override is not None else config["interest"]
     writeoff_years = config["writeoff"]
-    repayment_rate = params["sl_repayment_rate"]
+    repayment_rate = params["sl_postgrad_rate"] if plan == "postgrad" else params["sl_repayment_rate"]
 
     results = []
     balance = loan_amount
@@ -544,9 +549,12 @@ def generate_lifetime_repayment_data(
             })
             continue
 
-        # Update threshold based on Autumn Budget 2025 policy (Plan 2 only)
-        # Frozen 2027-2029, RPI uprating resumes 2030+
-        if plan == "plan2":
+        # Update threshold based on Autumn Budget 2025 policy
+        # Plan 2: frozen 2027-2029, RPI uprating resumes 2030+
+        # Postgrad: threshold currently frozen (no announced unfreeze date)
+        if plan == "postgrad":
+            pass  # Threshold stays frozen at base_threshold
+        elif plan == "plan2":
             if calendar_year >= 2030:
                 # RPI uprating resumes from 2030
                 rpi_rate = get_rpi_rate(calendar_year)
