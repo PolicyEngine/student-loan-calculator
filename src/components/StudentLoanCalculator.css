@@ -65,7 +65,7 @@ html {
 }
 
 .controls-panel-title {
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #1e293b;
   margin: 0;
@@ -263,14 +263,14 @@ html {
 .calculate-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 18px;
-  font-size: 0.8rem;
+  gap: 8px;
+  padding: 10px 24px;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #fff;
   background: #319795;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
   letter-spacing: 0.01em;
