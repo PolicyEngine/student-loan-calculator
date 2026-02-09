@@ -301,7 +301,7 @@ export default function StudentLoanCalculator() {
   const [policyChartView] = useState("annual"); // "annual" or "cumulative"
 
   // Complete MTR with UC state
-  const [lifetimeViewMode, setLifetimeViewMode] = useState('cumulative'); // 'cumulative' or 'annual'
+  const [lifetimeViewMode, setLifetimeViewMode] = useState('annual'); // 'cumulative' or 'annual'
 
   const [completeMtrData, setCompleteMtrData] = useState(null);
   const [completeMtrLoading, setCompleteMtrLoading] = useState(false);
