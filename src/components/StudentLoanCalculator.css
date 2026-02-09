@@ -1556,6 +1556,7 @@ html {
 .summary-cards {
   display: flex;
   gap: 16px;
+  align-items: stretch;
 }
 
 .summary-card {
@@ -1564,6 +1565,10 @@ html {
   border-radius: 10px;
   padding: 20px 16px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .summary-number {
