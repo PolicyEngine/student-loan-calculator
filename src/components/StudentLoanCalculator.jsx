@@ -2098,9 +2098,9 @@ export default function StudentLoanCalculator() {
             const ugRepayments = lifetimeData.filter(d => d.annualRepayment > 0).map(d => d.annualRepayment);
             const ugAvgRepayment = ugRepayments.length > 0 ? ugRepayments.reduce((a, b) => a + b, 0) / ugRepayments.length : 0;
 
-            // Postgrad loan — use precomputed lifetime data
-            const pgAnnualRepayment = showPostgrad && exampleSalary > params.slPostgradThreshold
-              ? (exampleSalary - params.slPostgradThreshold) * params.slPostgradRate : 0;
+            // Postgrad loan — average from lifetime data (same approach as undergrad)
+            const pgRepayments = postgradLifetimeData.filter(d => d.annualRepayment > 0).map(d => d.annualRepayment);
+            const pgAvgRepayment = pgRepayments.length > 0 ? pgRepayments.reduce((a, b) => a + b, 0) / pgRepayments.length : 0;
             const pgRemaining = postgradLifetimeData.length > 0
               ? postgradLifetimeData[postgradLifetimeData.length - 1]?.remainingBalance || 0 : 0;
 
@@ -2108,7 +2108,7 @@ export default function StudentLoanCalculator() {
             const ugLabel = PLAN_OPTIONS.find(p => p.value === selectedPlan)?.label;
             const repaymentParts = [];
             if (hasUndergradLoan && ugAvgRepayment > 0) repaymentParts.push(`£${d3.format(",.0f")(ugAvgRepayment)}`);
-            if (showPostgrad && pgAnnualRepayment > 0) repaymentParts.push(`£${d3.format(",.0f")(pgAnnualRepayment)}`);
+            if (showPostgrad && pgAvgRepayment > 0) repaymentParts.push(`£${d3.format(",.0f")(pgAvgRepayment)}`);
             const repaymentDisplay = repaymentParts.join(' + ') || '£0';
 
             const sublabelParts = [];
@@ -2119,7 +2119,7 @@ export default function StudentLoanCalculator() {
               <div className="summary-cards">
                 <div className="summary-card">
                   <div className="summary-number">{repaymentDisplay}</div>
-                  <div className="summary-label">Annual repayment{hasUndergradLoan && showPostgrad ? 's' : ''}</div>
+                  <div className="summary-label">Avg. annual repayment{hasUndergradLoan && showPostgrad ? 's' : ''}</div>
                   <div className="summary-sublabel">{sublabelParts.join(' + ')}</div>
                 </div>
                 {hasUndergradLoan && (
