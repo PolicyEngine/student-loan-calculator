@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import * as d3 from "d3";
 import "./StudentLoanCalculator.css";
@@ -211,7 +213,7 @@ function getPlanWriteoffYears(params, plan) {
 
 // API URL - uses environment variable if set, otherwise production Modal URL
 const getApiUrl = () => {
-  return import.meta.env.VITE_API_URL || "https://policyengine--student-loan-calculator-api-fastapi-app.modal.run";
+  return process.env.NEXT_PUBLIC_API_URL || "https://policyengine--student-loan-calculator-api-fastapi-app.modal.run";
 };
 
 // Format year as UK tax year (e.g., 2026 -> "2026-27")
