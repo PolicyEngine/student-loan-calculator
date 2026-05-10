@@ -397,7 +397,7 @@ export default function StudentLoanCalculator() {
 
   // Load parameters from CSV
   useEffect(() => {
-    fetch('/data/student_loan_parameters.csv')
+    fetch(`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/data/student_loan_parameters.csv`)
       .then(response => response.text())
       .then(csvText => {
         const lines = csvText.trim().split('\n');
