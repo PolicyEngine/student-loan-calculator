@@ -1798,7 +1798,7 @@ export default function StudentLoanCalculator() {
       {/* Hero Section */}
       <header className="narrative-hero">
         <h1>Student loan deductions calculator</h1>
-        <p className="narrative-lead">
+        <div className="narrative-lead">
           Analyse student loan repayments, marginal tax rates, take-home pay, and lifetime costs for UK graduates. <details className="expandable-section inline-details">
           <summary> How repayments work by loan plan?</summary>
           <ul className="plan-list">
@@ -1809,7 +1809,7 @@ export default function StudentLoanCalculator() {
             <li><a href="https://www.gov.uk/government/publications/student-loans-a-guide-to-terms-and-conditions/student-loans-a-guide-to-terms-and-conditions-2026-to-2027" target="_blank" rel="noopener noreferrer">Postgraduate loan</a>: A separate loan for Master's or PhD courses (from 2016/2018). Repayments are 6% of income above £{d3.format(",.0f")(params.slPostgradThreshold)} ({formatTaxYear(selectedYear)}), collected alongside any undergraduate plan. Interest is RPI + 3%. Written off after 30 years. The repayment threshold has been frozen at £21,000 since 2016.</li>
           </ul>
         </details>
-        </p>
+        </div>
       </header>
 
       {/* Controls Panel */}
