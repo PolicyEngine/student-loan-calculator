@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import PolicyEngineHeader from '@/components/PolicyEngineHeader';
 import './globals.css';
 
 const SITE_URL = 'https://student-loan-calculator.policyengine.org';
@@ -59,10 +58,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>
-        <PolicyEngineHeader />
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
