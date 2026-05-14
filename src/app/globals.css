@@ -16,12 +16,16 @@ body {
   line-height: 1.5;
 }
 
-#root,
-body > div {
-  min-height: 100vh;
-}
-
+/*
+ * `.app` is the calculator's content wrapper. The previous rule selected
+ * `body > div` for `min-height: 100vh`, which was a Vite-era leftover when
+ * `<div id="root">` was the only direct body child. After the Next 16
+ * migration the PolicyEngine shell renders a sibling `<div>` above `.app`,
+ * so the broad selector pushed the calculator a full viewport below the
+ * header. Scope the min-height to `.app` only.
+ */
 .app {
+  min-height: 100vh;
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
